@@ -70,6 +70,10 @@ penpot-validate path/to/penpot_file.json
    - **Caching**: In-memory file cache to reduce API calls
    - **Resource/Tool Duality**: Resources can be exposed as tools via RESOURCES_AS_TOOLS config
    - **Transit Format**: Special handling for UUIDs (`~u` prefix) and keywords (`~:` prefix)
+   - **Session and Revision Management**: Every file update requires a session ID and revision number
+     - Session ID: Generated UUID for tracking edit sessions
+     - Revision number: Integer that increments with each change
+     - Use `editing_session()` context manager for convenience
 
 ### Available Tools/Functions
 
@@ -101,6 +105,14 @@ DEBUG=true               # debug logging
 3. **Error Handling**: Always check for `"error"` keys in API responses
 4. **Testing**: Use `test_mode=True` when creating server instances in tests
 5. **Transit Format**: Remember to handle Transit+JSON when working with raw API
+6. **Session Management**: Use `editing_session()` context manager for file updates
+   - Automatically generates session ID and retrieves current revision
+   - Example:
+     ```python
+     with api.editing_session("file-id") as (session_id, revn):
+         # Use session_id and revn for update operations
+         api.update_file(file_id, session_id, revn, changes)
+     ```
 
 ### Common Workflow for Code Generation
 
