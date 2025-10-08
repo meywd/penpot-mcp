@@ -1259,12 +1259,15 @@ def main():
             print(f"- {project.get('name')} - {project.get('teamName')} (ID: {project.get('id')})")
 
     elif args.command == 'get-project':
-        project = api.get_project(args.id)
-        if project:
+        try:
+            project = api.get_project(args.id)
             print(f"Project: {project.get('name')}")
             print(json.dumps(project, indent=2))
-        else:
-            print(f"Project not found: {args.id}")
+        except requests.HTTPError as e:
+            if e.response and e.response.status_code == 404:
+                print(f"Project not found: {args.id}")
+            else:
+                print(f"Error retrieving project: {e}")
 
     elif args.command == 'list-files':
         files = api.get_project_files(args.project_id)
