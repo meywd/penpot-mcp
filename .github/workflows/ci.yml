@@ -6,6 +6,7 @@ on:
   push:
     branches: [ main, develop ]
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   test:
