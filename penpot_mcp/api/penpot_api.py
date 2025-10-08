@@ -31,6 +31,11 @@ class PenpotAPIError(Exception):
         self.is_cloudflare = is_cloudflare
 
 
+class RevisionConflictError(PenpotAPIError):
+    """Raised when revision number conflicts."""
+    pass
+
+
 class PenpotAPI:
     def __init__(
             self,
@@ -805,6 +810,221 @@ class PenpotAPI:
         finally:
             if self.debug:
                 print(f"Ending editing session {session_id}")
+
+    def _convert_changes_to_transit(self, changes: List[dict]) -> List[dict]:
+        """
+        Convert a list of change operations to Transit+JSON format.
+        
+        This method recursively processes change operations, adding:
+        - ~u prefix to UUID fields (id, pageId, frameId, parentId)
+        - ~: prefix to keyword fields (type, attr names)
+        
+        Args:
+            changes: List of change operations
+            
+        Returns:
+            List of changes in Transit+JSON format
+        """
+        def convert_value(key: str, value: Any) -> Any:
+            """Convert a single value based on its key and type."""
+            # UUID fields that need ~u prefix
+            uuid_fields = {'id', 'pageId', 'frameId', 'parentId', 'obj-id'}
+            # Keyword fields that need ~: prefix for their values
+            keyword_fields = {'type', 'attr'}
+            
+            if isinstance(value, dict):
+                # Recursively convert nested dictionaries
+                return convert_dict(value)
+            elif isinstance(value, list):
+                # Recursively convert list items
+                return [convert_value(key, item) for item in value]
+            elif isinstance(value, str):
+                # Handle string values based on the key
+                if key in uuid_fields:
+                    # Add ~u prefix to UUIDs (even short test IDs)
+                    return f"~u{value}"
+                elif key in keyword_fields:
+                    # Add ~: prefix to keyword values
+                    return f"~:{value}"
+                else:
+                    # Return other strings as-is (like names, descriptions)
+                    return value
+            else:
+                # Return non-string types as-is (numbers, booleans, None)
+                return value
+        
+        def convert_dict(obj: dict) -> dict:
+            """Convert a dictionary to Transit+JSON format."""
+            transit_obj = {}
+            for key, value in obj.items():
+                # Convert key to Transit keyword format
+                transit_key = f"~:{key}" if not key.startswith('~:') else key
+                # Convert value
+                transit_value = convert_value(key, value)
+                transit_obj[transit_key] = transit_value
+            return transit_obj
+        
+        # Convert each change operation
+        return [convert_dict(change) for change in changes]
+
+    def update_file(
+        self,
+        file_id: str,
+        session_id: str,
+        revn: int,
+        changes: List[dict]
+    ) -> Dict[str, Any]:
+        """
+        Update a Penpot file with design changes.
+
+        This is the core method for ALL design operations. Changes are
+        applied atomically as a batch.
+
+        Args:
+            file_id: UUID of the file to update
+            session_id: UUID for this editing session
+            revn: Current revision number (will increment to revn+1)
+            changes: List of change operations (add-obj, mod-obj, del-obj, etc.)
+
+        Returns:
+            Updated file information with new revision number
+
+        Raises:
+            RevisionConflictError: If revn does not match server state
+            PenpotAPIError: For other API errors
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> with api.editing_session("file-123") as (session_id, revn):
+            >>>     changes = [api.create_add_obj_change("obj-1", "page-1", {"type": "rect"})]
+            >>>     result = api.update_file("file-123", session_id, revn, changes)
+        """
+        url = f"{self.base_url}/rpc/command/update-file"
+
+        # Convert changes to Transit+JSON format
+        transit_changes = self._convert_changes_to_transit(changes)
+
+        payload = {
+            "id": file_id,
+            "session-id": session_id,
+            "revn": revn,
+            "changes": transit_changes
+        }
+
+        if self.debug:
+            print(f"\nUpdating file {file_id}")
+            print(f"Session: {session_id}, Revision: {revn}")
+            print(f"Changes: {len(changes)} operations")
+
+        try:
+            response = self._make_authenticated_request(
+                'post', url, json=payload, use_transit=True
+            )
+            data = response.json()
+
+            if self.debug:
+                print(f"Update successful. New revision: {data.get('revn')}")
+
+            return data
+
+        except requests.HTTPError as e:
+            # Check for revision conflict
+            if e.response.status_code == 409:
+                raise RevisionConflictError(
+                    f"Revision conflict. Expected {revn} but server has different version."
+                )
+            raise
+
+    def create_add_obj_change(
+        self, obj_id: str, page_id: str, obj: dict,
+        frame_id: Optional[str] = None
+    ) -> dict:
+        """
+        Create an add-obj change operation.
+        
+        Args:
+            obj_id: UUID for the new object
+            page_id: UUID of the page to add object to
+            obj: Object definition (type, properties, etc.)
+            frame_id: Optional UUID of parent frame
+            
+        Returns:
+            Change operation dictionary
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> obj = {'type': 'rect', 'x': 0, 'y': 0, 'width': 100, 'height': 100}
+            >>> change = api.create_add_obj_change("obj-1", "page-1", obj)
+        """
+        change = {
+            'type': 'add-obj',
+            'id': obj_id,
+            'pageId': page_id,
+            'obj': obj
+        }
+        if frame_id is not None:
+            change['frameId'] = frame_id
+        return change
+
+    def create_mod_obj_change(self, obj_id: str, operations: List[dict]) -> dict:
+        """
+        Create a mod-obj change operation.
+        
+        Args:
+            obj_id: UUID of the object to modify
+            operations: List of operations to apply (set, unset, etc.)
+            
+        Returns:
+            Change operation dictionary
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> ops = [api.create_set_operation('x', 100)]
+            >>> change = api.create_mod_obj_change("obj-1", ops)
+        """
+        return {
+            'type': 'mod-obj',
+            'id': obj_id,
+            'operations': operations
+        }
+
+    def create_set_operation(self, attr: str, val: Any) -> dict:
+        """
+        Create a set operation for single attribute.
+        
+        Args:
+            attr: Attribute name to set
+            val: Value to set
+            
+        Returns:
+            Set operation dictionary
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> op = api.create_set_operation('x', 100)
+        """
+        return {'type': 'set', 'attr': attr, 'val': val}
+
+    def create_del_obj_change(self, obj_id: str, page_id: str) -> dict:
+        """
+        Create a del-obj change operation.
+        
+        Args:
+            obj_id: UUID of the object to delete
+            page_id: UUID of the page containing the object
+            
+        Returns:
+            Change operation dictionary
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> change = api.create_del_obj_change("obj-1", "page-1")
+        """
+        return {
+            'type': 'del-obj',
+            'id': obj_id,
+            'pageId': page_id
+        }
 
     def create_file(
         self,
