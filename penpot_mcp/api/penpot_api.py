@@ -1451,6 +1451,256 @@ class PenpotAPI:
         """
         return self.create_set_operation('parentId', parent_id)
 
+    def create_gradient_fill(
+        self,
+        gradient_type: str,
+        start_color: str,
+        end_color: str,
+        start_x: float = 0.0,
+        start_y: float = 0.0,
+        end_x: float = 1.0,
+        end_y: float = 1.0,
+        **kwargs
+    ) -> dict:
+        """
+        Create a gradient fill definition.
+
+        Args:
+            gradient_type: Type of gradient ('linear' or 'radial')
+            start_color: Start color in hex format (e.g., '#ff0000')
+            end_color: End color in hex format
+            start_x: Start X position (0.0-1.0, relative to shape)
+            start_y: Start Y position (0.0-1.0, relative to shape)
+            end_x: End X position (0.0-1.0, relative to shape)
+            end_y: End Y position (0.0-1.0, relative to shape)
+            **kwargs: Additional gradient properties
+
+        Returns:
+            Gradient fill dictionary
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> # Linear gradient from red to blue
+            >>> gradient = api.create_gradient_fill(
+            ...     'linear',
+            ...     '#ff0000',
+            ...     '#0000ff',
+            ...     start_x=0, start_y=0,
+            ...     end_x=1, end_y=0
+            ... )
+        """
+        valid_types = ['linear', 'radial']
+        if gradient_type not in valid_types:
+            raise ValueError(f"Invalid gradient_type '{gradient_type}'. Must be one of: {', '.join(valid_types)}")
+
+        gradient = {
+            'type': f'{gradient_type}-gradient',
+            'start-color': start_color,
+            'end-color': end_color,
+            'start-x': start_x,
+            'start-y': start_y,
+            'end-x': end_x,
+            'end-y': end_y
+        }
+
+        gradient.update(kwargs)
+
+        return gradient
+
+    def create_stroke(
+        self,
+        color: str,
+        width: float = 1.0,
+        style: str = 'solid',
+        cap: str = 'round',
+        join: str = 'round',
+        **kwargs
+    ) -> dict:
+        """
+        Create a stroke (border) definition.
+
+        Args:
+            color: Stroke color in hex format
+            width: Stroke width in pixels (default: 1.0)
+            style: Stroke style ('solid', 'dashed', 'dotted', 'mixed')
+            cap: Line cap style ('round', 'square', 'butt')
+            join: Line join style ('round', 'bevel', 'miter')
+            **kwargs: Additional stroke properties
+
+        Returns:
+            Stroke dictionary
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> stroke = api.create_stroke('#000000', width=2.0, style='dashed')
+        """
+        valid_styles = ['solid', 'dashed', 'dotted', 'mixed']
+        if style not in valid_styles:
+            raise ValueError(f"Invalid style '{style}'. Must be one of: {', '.join(valid_styles)}")
+
+        valid_caps = ['round', 'square', 'butt']
+        if cap not in valid_caps:
+            raise ValueError(f"Invalid cap '{cap}'. Must be one of: {', '.join(valid_caps)}")
+
+        valid_joins = ['round', 'bevel', 'miter']
+        if join not in valid_joins:
+            raise ValueError(f"Invalid join '{join}'. Must be one of: {', '.join(valid_joins)}")
+
+        stroke = {
+            'stroke-color': color,
+            'stroke-width': width,
+            'stroke-style': style,
+            'stroke-cap': cap,
+            'stroke-join': join
+        }
+
+        stroke.update(kwargs)
+
+        return stroke
+
+    def create_shadow(
+        self,
+        color: str,
+        offset_x: float,
+        offset_y: float,
+        blur: float,
+        spread: float = 0.0,
+        hidden: bool = False,
+        **kwargs
+    ) -> dict:
+        """
+        Create a drop shadow effect.
+
+        Args:
+            color: Shadow color in hex format with alpha (e.g., '#00000080')
+            offset_x: Horizontal offset in pixels
+            offset_y: Vertical offset in pixels
+            blur: Blur radius in pixels
+            spread: Spread radius in pixels (default: 0.0)
+            hidden: Whether shadow is hidden (default: False)
+            **kwargs: Additional shadow properties
+
+        Returns:
+            Shadow dictionary
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> shadow = api.create_shadow('#00000080', 2, 2, 4)
+        """
+        shadow = {
+            'color': color,
+            'offset-x': offset_x,
+            'offset-y': offset_y,
+            'blur': blur,
+            'spread': spread,
+            'hidden': hidden
+        }
+
+        shadow.update(kwargs)
+
+        return shadow
+
+    def create_blur(
+        self,
+        blur_type: str,
+        value: float,
+        hidden: bool = False
+    ) -> dict:
+        """
+        Create a blur effect.
+
+        Args:
+            blur_type: Type of blur ('layer-blur' or 'background-blur')
+            value: Blur amount in pixels
+            hidden: Whether blur is hidden (default: False)
+
+        Returns:
+            Blur effect dictionary
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> blur = api.create_blur('layer-blur', 10)
+        """
+        valid_types = ['layer-blur', 'background-blur']
+        if blur_type not in valid_types:
+            raise ValueError(f"Invalid blur_type '{blur_type}'. Must be one of: {', '.join(valid_types)}")
+
+        blur = {
+            'type': blur_type,
+            'value': value,
+            'hidden': hidden
+        }
+
+        return blur
+
+    def create_fill_operation(self, fills: List[dict]) -> dict:
+        """
+        Create operation to set fill(s) on object.
+
+        Args:
+            fills: List of fill dictionaries (solid colors or gradients)
+
+        Returns:
+            Set operation for fills attribute
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> gradient = api.create_gradient_fill('linear', '#ff0000', '#0000ff')
+            >>> op = api.create_fill_operation([gradient])
+        """
+        return self.create_set_operation('fills', fills)
+
+    def create_stroke_operation(self, strokes: List[dict]) -> dict:
+        """
+        Create operation to set stroke(s) on object.
+
+        Args:
+            strokes: List of stroke dictionaries
+
+        Returns:
+            Set operation for strokes attribute
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> stroke = api.create_stroke('#000000', width=2.0)
+            >>> op = api.create_stroke_operation([stroke])
+        """
+        return self.create_set_operation('strokes', strokes)
+
+    def create_shadow_operation(self, shadows: List[dict]) -> dict:
+        """
+        Create operation to set shadow(s) on object.
+
+        Args:
+            shadows: List of shadow dictionaries
+
+        Returns:
+            Set operation for shadow attribute
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> shadow = api.create_shadow('#00000080', 2, 2, 4)
+            >>> op = api.create_shadow_operation([shadow])
+        """
+        return self.create_set_operation('shadow', shadows)
+
+    def create_blur_operation(self, blur: dict) -> dict:
+        """
+        Create operation to set blur effect on object.
+
+        Args:
+            blur: Blur effect dictionary
+
+        Returns:
+            Set operation for blur attribute
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> blur = api.create_blur('layer-blur', 10)
+            >>> op = api.create_blur_operation(blur)
+        """
+        return self.create_set_operation('blur', blur)
+
     def create_file(
         self,
         name: str,
