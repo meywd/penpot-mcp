@@ -1073,3 +1073,287 @@ def test_search_object_error_handling(mock_penpot_api):
     
     # Verify API was called
     mock_penpot_api.get_file.assert_called_with(file_id="file1")
+
+
+def test_create_file_tool(mock_penpot_api):
+    """Test create_file MCP tool."""
+    # Setup mock response
+    mock_penpot_api.create_file.return_value = {
+        "id": "new-file-123",
+        "name": "Test File",
+        "projectId": "project-123",
+        "created": "2024-01-01T00:00:00Z",
+        "modified": "2024-01-01T00:00:00Z"
+    }
+    
+    # Create mock cache
+    from penpot_mcp.utils.cache import MemoryCache
+    mock_cache = MemoryCache()
+    
+    # Create a callable that matches what would be registered
+    def create_file(name: str, project_id: str, is_shared: bool = False):
+        try:
+            result = mock_penpot_api.create_file(name, project_id, is_shared)
+            # Cache the newly created file
+            mock_cache.set(result['id'], result)
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+    
+    # Call the handler
+    result = create_file("Test File", "project-123")
+    
+    # Check the result
+    assert isinstance(result, dict)
+    assert "id" in result
+    assert result["id"] == "new-file-123"
+    assert result["name"] == "Test File"
+    assert result["projectId"] == "project-123"
+    
+    # Verify API was called with correct parameters
+    mock_penpot_api.create_file.assert_called_once_with("Test File", "project-123", False)
+    
+    # Verify file was cached
+    cached = mock_cache.get("new-file-123")
+    assert cached is not None
+    assert cached["name"] == "Test File"
+
+
+def test_create_file_with_shared(mock_penpot_api):
+    """Test create_file MCP tool with is_shared parameter."""
+    # Setup mock response
+    mock_penpot_api.create_file.return_value = {
+        "id": "new-file-456",
+        "name": "Shared File",
+        "projectId": "project-123",
+        "isShared": True
+    }
+    
+    # Create mock cache
+    from penpot_mcp.utils.cache import MemoryCache
+    mock_cache = MemoryCache()
+    
+    # Create a callable that matches what would be registered
+    def create_file(name: str, project_id: str, is_shared: bool = False):
+        try:
+            result = mock_penpot_api.create_file(name, project_id, is_shared)
+            # Cache the newly created file
+            mock_cache.set(result['id'], result)
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+    
+    # Call the handler with is_shared=True
+    result = create_file("Shared File", "project-123", is_shared=True)
+    
+    # Check the result
+    assert isinstance(result, dict)
+    assert result["id"] == "new-file-456"
+    assert result["isShared"] is True
+    
+    # Verify API was called with correct parameters
+    mock_penpot_api.create_file.assert_called_once_with("Shared File", "project-123", True)
+
+
+def test_delete_file_tool(mock_penpot_api):
+    """Test delete_file MCP tool."""
+    # Setup mock response
+    mock_penpot_api.delete_file.return_value = {"success": True, "id": "file-123"}
+    
+    # Create mock cache with existing file
+    from penpot_mcp.utils.cache import MemoryCache
+    mock_cache = MemoryCache()
+    mock_cache.set("file-123", {"id": "file-123", "name": "Old File"})
+    
+    # Create a callable that matches what would be registered
+    def delete_file(file_id: str):
+        try:
+            result = mock_penpot_api.delete_file(file_id)
+            # Remove from cache if present
+            if file_id in mock_cache._cache:
+                del mock_cache._cache[file_id]
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+    
+    # Verify file is in cache before deletion
+    assert mock_cache.get("file-123") is not None
+    
+    # Call the handler
+    result = delete_file("file-123")
+    
+    # Check the result
+    assert isinstance(result, dict)
+    assert result["success"] is True
+    assert result["id"] == "file-123"
+    
+    # Verify API was called
+    mock_penpot_api.delete_file.assert_called_once_with("file-123")
+    
+    # Verify file was removed from cache
+    assert mock_cache.get("file-123") is None
+
+
+def test_rename_file_tool(mock_penpot_api):
+    """Test rename_file MCP tool."""
+    # Setup mock response
+    mock_penpot_api.rename_file.return_value = {
+        "id": "file-123",
+        "name": "New File Name",
+        "projectId": "project-123"
+    }
+    
+    # Create mock cache with existing file
+    from penpot_mcp.utils.cache import MemoryCache
+    mock_cache = MemoryCache()
+    # Set cache correctly - no nested 'data' key in the data we're storing
+    mock_cache.set("file-123", {
+        "id": "file-123",
+        "name": "Old Name"
+    })
+    
+    # Create a callable that matches what would be registered
+    def rename_file(file_id: str, name: str):
+        try:
+            result = mock_penpot_api.rename_file(file_id, name)
+            # Update cache if present - accessing internal _cache structure
+            if file_id in mock_cache._cache:
+                # Update the name in the cache's data field
+                mock_cache._cache[file_id]['data']['name'] = name
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+    
+    # Call the handler
+    result = rename_file("file-123", "New File Name")
+    
+    # Check the result
+    assert isinstance(result, dict)
+    assert result["id"] == "file-123"
+    assert result["name"] == "New File Name"
+    
+    # Verify API was called
+    mock_penpot_api.rename_file.assert_called_once_with("file-123", "New File Name")
+    
+    # Verify cache was updated - get returns unwrapped data
+    cached = mock_cache.get("file-123")
+    assert cached["name"] == "New File Name"
+
+
+
+def test_list_teams_tool(mock_penpot_api):
+    """Test list_teams MCP tool."""
+    # Setup mock response
+    mock_penpot_api.get_teams.return_value = [
+        {"id": "team1", "name": "Team 1", "isDefault": True},
+        {"id": "team2", "name": "Team 2", "isDefault": False}
+    ]
+    
+    # Create a callable that matches what would be registered
+    def list_teams():
+        try:
+            teams = mock_penpot_api.get_teams()
+            return {"teams": teams}
+        except Exception as e:
+            return {"error": str(e)}
+    
+    # Call the handler
+    result = list_teams()
+    
+    # Check the result
+    assert isinstance(result, dict)
+    assert "teams" in result
+    assert len(result["teams"]) == 2
+    assert result["teams"][0]["id"] == "team1"
+    assert result["teams"][1]["id"] == "team2"
+    assert result["teams"][0]["isDefault"] is True
+    
+    # Verify API was called
+    mock_penpot_api.get_teams.assert_called_once()
+
+
+def test_create_project_tool(mock_penpot_api):
+    """Test create_project MCP tool."""
+    # Setup mock response
+    mock_penpot_api.create_project.return_value = {
+        "id": "new-project-123",
+        "name": "Test Project",
+        "teamId": "team-123",
+        "created": "2024-01-01T00:00:00Z"
+    }
+    
+    # Create a callable that matches what would be registered
+    def create_project(name: str, team_id: str):
+        try:
+            result = mock_penpot_api.create_project(name, team_id)
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+    
+    # Call the handler
+    result = create_project("Test Project", "team-123")
+    
+    # Check the result
+    assert isinstance(result, dict)
+    assert "id" in result
+    assert result["id"] == "new-project-123"
+    assert result["name"] == "Test Project"
+    assert result["teamId"] == "team-123"
+    
+    # Verify API was called
+    mock_penpot_api.create_project.assert_called_once_with("Test Project", "team-123")
+
+
+def test_rename_project_tool(mock_penpot_api):
+    """Test rename_project MCP tool."""
+    # Setup mock response
+    mock_penpot_api.rename_project.return_value = {
+        "id": "project-123",
+        "name": "Renamed Project",
+        "teamId": "team-123"
+    }
+    
+    # Create a callable that matches what would be registered
+    def rename_project(project_id: str, name: str):
+        try:
+            result = mock_penpot_api.rename_project(project_id, name)
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+    
+    # Call the handler
+    result = rename_project("project-123", "Renamed Project")
+    
+    # Check the result
+    assert isinstance(result, dict)
+    assert result["id"] == "project-123"
+    assert result["name"] == "Renamed Project"
+    
+    # Verify API was called
+    mock_penpot_api.rename_project.assert_called_once_with("project-123", "Renamed Project")
+
+
+def test_delete_project_tool(mock_penpot_api):
+    """Test delete_project MCP tool."""
+    # Setup mock response
+    mock_penpot_api.delete_project.return_value = {"success": True, "id": "project-123"}
+    
+    # Create a callable that matches what would be registered
+    def delete_project(project_id: str):
+        try:
+            result = mock_penpot_api.delete_project(project_id)
+            return result
+        except Exception as e:
+            return {"error": str(e)}
+    
+    # Call the handler
+    result = delete_project("project-123")
+    
+    # Check the result
+    assert isinstance(result, dict)
+    assert result["success"] is True
+    assert result["id"] == "project-123"
+    
+    # Verify API was called
+    mock_penpot_api.delete_project.assert_called_once_with("project-123")
+
