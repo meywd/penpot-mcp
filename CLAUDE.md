@@ -105,6 +105,12 @@ penpot-validate path/to/penpot_file.json
 - `delete_object`: Delete an object from a page
 - `apply_design_changes`: Apply multiple changes atomically
 
+**Advanced Shape Helpers (Phase 3):**
+- `create_path`: Create custom vector paths with points
+- `create_boolean_shape`: Boolean operations (union, difference, intersection, exclusion)
+- `create_parent_operation`: Set object parent for grouping
+- `create_group`: Create group containers (already implemented in Phase 2)
+
 ### Environment Configuration
 
 Create a `.env` file with:
@@ -286,6 +292,200 @@ export_object(
     export_type="png",
     scale=2
 )
+```
+
+### Advanced Shape Creation Workflow (Phase 3)
+
+#### 1. Creating Custom Vector Paths
+
+```python
+# Create a triangle path
+api = PenpotAPI()
+triangle_points = [
+    {'x': 50, 'y': 0},
+    {'x': 100, 'y': 100},
+    {'x': 0, 'y': 100}
+]
+triangle = api.create_path(
+    points=triangle_points,
+    closed=True,
+    fill_color='#ff0000',
+    stroke_color='#000000',
+    stroke_width=2,
+    name="Triangle"
+)
+
+# Add to file
+triangle_id = api.generate_session_id()
+change = api.create_add_obj_change(triangle_id, "page-id", triangle)
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [change])
+```
+
+#### 2. Creating Grouped Objects
+
+```python
+# Create a button group with rectangle and text
+api = PenpotAPI()
+
+# Create group container
+group = api.create_group(name="Button Group", x=100, y=100)
+group_id = api.generate_session_id()
+
+# Create rectangle for button background
+button_bg = api.create_rectangle(
+    x=0, y=0,
+    width=120, height=40,
+    fill_color='#4A90E2',
+    rx=5, ry=5
+)
+button_bg['parentId'] = group_id  # Set parent to group
+bg_id = api.generate_session_id()
+
+# Create text for button label
+button_text = api.create_text(
+    x=30, y=12,
+    content="Click Me",
+    fill_color='#FFFFFF',
+    font_size=16
+)
+button_text['parentId'] = group_id  # Set parent to group
+text_id = api.generate_session_id()
+
+# Add all objects
+changes = [
+    api.create_add_obj_change(group_id, "page-id", group),
+    api.create_add_obj_change(bg_id, "page-id", button_bg),
+    api.create_add_obj_change(text_id, "page-id", button_text)
+]
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, changes)
+```
+
+#### 3. Boolean Operations with Shapes
+
+```python
+# Create a union of two circles (Venn diagram overlap)
+api = PenpotAPI()
+
+# Create first circle
+circle1 = api.create_circle(cx=50, cy=50, radius=40, fill_color='#ff0000')
+circle1_id = api.generate_session_id()
+
+# Create second circle
+circle2 = api.create_circle(cx=80, cy=50, radius=40, fill_color='#00ff00')
+circle2_id = api.generate_session_id()
+
+# Create boolean union shape
+bool_shape = api.create_boolean_shape(
+    operation='union',
+    shapes=[circle1_id, circle2_id],
+    name="Union of Circles"
+)
+bool_id = api.generate_session_id()
+
+# Add shapes and boolean operation
+changes = [
+    api.create_add_obj_change(circle1_id, "page-id", circle1),
+    api.create_add_obj_change(circle2_id, "page-id", circle2),
+    api.create_add_obj_change(bool_id, "page-id", bool_shape)
+]
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, changes)
+```
+
+#### 4. Moving Objects into Groups (Parent Operations)
+
+```python
+# Move existing objects into a group
+api = PenpotAPI()
+
+# Create parent operations
+parent_op = api.create_parent_operation("group-123")
+
+# Apply to multiple objects
+changes = [
+    api.create_mod_obj_change("obj-1", [parent_op]),
+    api.create_mod_obj_change("obj-2", [parent_op]),
+    api.create_mod_obj_change("obj-3", [parent_op])
+]
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, changes)
+```
+
+#### 5. Complex Path Example (Pentagon)
+
+```python
+# Create a regular pentagon
+api = PenpotAPI()
+import math
+
+# Calculate pentagon points
+n_sides = 5
+radius = 50
+center_x, center_y = 100, 100
+points = []
+
+for i in range(n_sides):
+    angle = (2 * math.pi * i / n_sides) - (math.pi / 2)  # Start from top
+    x = center_x + radius * math.cos(angle)
+    y = center_y + radius * math.sin(angle)
+    points.append({'x': x, 'y': y})
+
+pentagon = api.create_path(
+    points=points,
+    closed=True,
+    fill_color='#ff00ff',
+    stroke_color='#000000',
+    stroke_width=2,
+    name="Pentagon"
+)
+
+pentagon_id = api.generate_session_id()
+change = api.create_add_obj_change(pentagon_id, "page-id", pentagon)
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [change])
+```
+
+#### 6. Advanced Boolean Operations
+
+```python
+# Create complex shapes using different boolean operations
+api = PenpotAPI()
+
+# Operation types:
+# - 'union': Combine shapes
+# - 'difference': Subtract second shape from first
+# - 'intersection': Keep only overlapping areas
+# - 'exclusion': Keep non-overlapping areas
+
+# Example: Create a donut shape (circle with hole)
+outer_circle = api.create_circle(cx=100, cy=100, radius=50, fill_color='#4A90E2')
+inner_circle = api.create_circle(cx=100, cy=100, radius=30, fill_color='#4A90E2')
+outer_id = api.generate_session_id()
+inner_id = api.generate_session_id()
+
+# Subtract inner from outer
+donut = api.create_boolean_shape(
+    operation='difference',
+    shapes=[outer_id, inner_id],
+    name="Donut"
+)
+donut_id = api.generate_session_id()
+
+changes = [
+    api.create_add_obj_change(outer_id, "page-id", outer_circle),
+    api.create_add_obj_change(inner_id, "page-id", inner_circle),
+    api.create_add_obj_change(donut_id, "page-id", donut)
+]
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, changes)
 ```
 
 ### Testing Patterns

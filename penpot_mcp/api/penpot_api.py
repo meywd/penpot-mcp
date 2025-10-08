@@ -1295,6 +1295,162 @@ class PenpotAPI:
 
         return group
 
+    def create_path(
+        self,
+        points: List[dict],
+        closed: bool = True,
+        fill_color: Optional[str] = None,
+        stroke_color: Optional[str] = None,
+        stroke_width: float = 1.0,
+        name: str = "Path",
+        **kwargs
+    ) -> dict:
+        """
+        Create a custom vector path object.
+
+        Args:
+            points: List of point dictionaries with x, y coordinates
+                    Example: [{'x': 0, 'y': 0}, {'x': 100, 'y': 0}, {'x': 100, 'y': 100}]
+            closed: Whether the path should be closed (default: True)
+            fill_color: Fill color (hex format, optional)
+            stroke_color: Stroke color (hex format, optional)
+            stroke_width: Stroke width in pixels
+            name: Path name
+            **kwargs: Additional object properties
+
+        Returns:
+            Path object dictionary ready for add-obj change
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> # Create triangle
+            >>> path = api.create_path([
+            ...     {'x': 50, 'y': 0},
+            ...     {'x': 100, 'y': 100},
+            ...     {'x': 0, 'y': 100}
+            ... ], fill_color='#ff0000')
+        """
+        if not points or len(points) < 2:
+            raise ValueError("Path must have at least 2 points")
+
+        # Convert points to SVG path commands
+        # Start with move to first point
+        path_commands = [{'command': 'M', 'params': {'x': points[0]['x'], 'y': points[0]['y']}}]
+        
+        # Add line to commands for remaining points
+        for point in points[1:]:
+            path_commands.append({'command': 'L', 'params': {'x': point['x'], 'y': point['y']}})
+        
+        # Close path if requested
+        if closed:
+            path_commands.append({'command': 'Z', 'params': {}})
+
+        # Calculate bounding box
+        xs = [p['x'] for p in points]
+        ys = [p['y'] for p in points]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        width = max_x - min_x
+        height = max_y - min_y
+
+        path = {
+            'type': 'path',
+            'name': name,
+            'x': min_x,
+            'y': min_y,
+            'width': width if width > 0 else 1,
+            'height': height if height > 0 else 1,
+            'content': path_commands
+        }
+
+        # Add fills if specified
+        if fill_color:
+            path['fills'] = [{
+                'fillColor': fill_color,
+                'fillOpacity': 1.0
+            }]
+
+        # Add strokes if specified
+        if stroke_color and stroke_width:
+            path['strokes'] = [{
+                'strokeColor': stroke_color,
+                'strokeWidth': stroke_width
+            }]
+
+        path.update(kwargs)
+
+        return path
+
+    def create_boolean_shape(
+        self,
+        operation: str,
+        shapes: List[str],
+        name: str = "Boolean",
+        **kwargs
+    ) -> dict:
+        """
+        Create a boolean shape from multiple shapes.
+
+        Args:
+            operation: Boolean operation type
+                      - 'union': Combine shapes
+                      - 'difference': Subtract shapes
+                      - 'intersection': Keep only overlapping areas
+                      - 'exclusion': Keep non-overlapping areas
+            shapes: List of object IDs to apply boolean operation to
+            name: Boolean shape name
+            **kwargs: Additional object properties
+
+        Returns:
+            Boolean object dictionary ready for add-obj change
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> # Create boolean shape from two circles
+            >>> bool_shape = api.create_boolean_shape(
+            ...     operation='union',
+            ...     shapes=['circle-1', 'circle-2']
+            ... )
+        """
+        valid_operations = ['union', 'difference', 'intersection', 'exclusion']
+        if operation not in valid_operations:
+            raise ValueError(f"Invalid operation '{operation}'. Must be one of: {', '.join(valid_operations)}")
+
+        if not shapes or len(shapes) < 2:
+            raise ValueError("Boolean shape requires at least 2 shapes")
+
+        bool_shape = {
+            'type': 'bool',
+            'name': name,
+            'bool-type': operation,
+            'shapes': shapes
+        }
+
+        bool_shape.update(kwargs)
+
+        return bool_shape
+
+    def create_parent_operation(
+        self,
+        parent_id: str
+    ) -> dict:
+        """
+        Create operation to set object's parent (for grouping).
+
+        Args:
+            parent_id: UUID of the parent frame/group
+
+        Returns:
+            Set operation for parentId
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> # Move object into group
+            >>> op = api.create_parent_operation("group-123")
+            >>> change = api.create_mod_obj_change("obj-1", [op])
+        """
+        return self.create_set_operation('parentId', parent_id)
+
     def create_file(
         self,
         name: str,
