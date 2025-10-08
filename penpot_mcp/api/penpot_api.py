@@ -641,7 +641,8 @@ class PenpotAPI:
             file_id: UUID of the file to delete
 
         Returns:
-            Success confirmation or error details
+            Success confirmation. If API returns empty response,
+            returns {"success": True, "id": file_id}
 
         Example:
             >>> api = PenpotAPI()
