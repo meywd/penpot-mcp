@@ -468,6 +468,38 @@ class PenpotAPI:
             # Return other types as-is
             return data
 
+    def get_teams(self) -> List[Dict[str, Any]]:
+        """
+        Get all teams for the authenticated user.
+        
+        Returns:
+            List of team dictionaries containing:
+            - id: Team UUID
+            - name: Team name
+            - isDefault: Whether this is the default team
+            - permissions: User permissions in the team
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> teams = api.get_teams()
+            >>> print(teams[0]['name'])
+        """
+        url = f"{self.base_url}/rpc/command/get-teams"
+        
+        payload = {}  # No parameters required
+        
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        
+        # Parse JSON
+        data = response.json()
+        
+        if self.debug:
+            print(f"\nRetrieved {len(data)} teams")
+            if data:
+                print(f"First team: {data[0].get('name')} (ID: {data[0].get('id')})")
+        
+        return data
+
     def list_projects(self) -> Dict[str, Any]:
         """
         List all available projects for the authenticated user.
@@ -495,25 +527,147 @@ class PenpotAPI:
 
         return data
 
-    def get_project(self, project_id: str) -> Optional[Dict[str, Any]]:
+    def create_project(
+        self,
+        name: str,
+        team_id: str,
+        project_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Get details for a specific project.
-
+        Create a new project within a team.
+        
         Args:
-            project_id: The ID of the project to retrieve
-
+            name: Project name
+            team_id: UUID of the team to create project in
+            project_id: Optional custom project UUID
+        
         Returns:
-            Dictionary containing project information
+            Dictionary containing created project information:
+            - id: Project UUID
+            - name: Project name
+            - teamId: Team UUID
+            - created: Creation timestamp
+            - modified: Last modified timestamp
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> teams = api.get_teams()
+            >>> project = api.create_project("My Project", team_id=teams[0]['id'])
+            >>> print(project['id'])
         """
-        # First get all projects
-        projects = self.list_projects()
+        url = f"{self.base_url}/rpc/command/create-project"
+        
+        payload = {
+            "name": name,
+            "team-id": team_id
+        }
+        
+        if project_id:
+            payload["id"] = project_id
+        
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+        
+        if self.debug:
+            print(f"\nProject created: {data.get('name')} (ID: {data.get('id')})")
+        
+        return data
 
-        # Find the specific project by ID
-        for project in projects:
-            if project.get('id') == project_id:
-                return project
+    def rename_project(self, project_id: str, name: str) -> Dict[str, Any]:
+        """
+        Rename an existing project.
+        
+        Args:
+            project_id: UUID of the project to rename
+            name: New project name
+        
+        Returns:
+            Updated project information
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> result = api.rename_project(project_id="abc-123", name="Better Name")
+            >>> print(result['name'])
+        """
+        url = f"{self.base_url}/rpc/command/rename-project"
+        
+        payload = {
+            "id": project_id,
+            "name": name
+        }
+        
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+        
+        if self.debug:
+            print(f"\nProject renamed: {data.get('name')} (ID: {data.get('id')})")
+        
+        return data
 
-        return None
+    def delete_project(self, project_id: str) -> Dict[str, Any]:
+        """
+        Delete a project.
+        
+        WARNING: This will delete all files in the project!
+        
+        Args:
+            project_id: UUID of the project to delete
+        
+        Returns:
+            Success confirmation
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> result = api.delete_project(project_id="abc-123")
+        """
+        url = f"{self.base_url}/rpc/command/delete-project"
+        
+        payload = {
+            "id": project_id
+        }
+        
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        
+        # Try to parse JSON response, but handle empty responses
+        try:
+            data = response.json()
+        except Exception:
+            # If no JSON response, return success with the project_id
+            data = {"success": True, "id": project_id}
+        
+        if self.debug:
+            print(f"\nProject deleted: {project_id}")
+        
+        return data
+
+    def get_project(self, project_id: str) -> Dict[str, Any]:
+        """
+        Get detailed information about a specific project.
+        
+        Args:
+            project_id: UUID of the project
+        
+        Returns:
+            Project details including permissions, team info, etc.
+            
+        Example:
+            >>> api = PenpotAPI()
+            >>> project = api.get_project(project_id="abc-123")
+            >>> print(project['name'])
+        """
+        url = f"{self.base_url}/rpc/command/get-project"
+        
+        payload = {
+            "id": project_id
+        }
+        
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+        
+        if self.debug:
+            print(f"\nRetrieved project: {data.get('name')} (ID: {data.get('id')})")
+        
+        return data
 
     def get_project_files(self, project_id: str) -> List[Dict[str, Any]]:
         """
