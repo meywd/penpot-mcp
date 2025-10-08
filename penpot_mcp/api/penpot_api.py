@@ -1026,6 +1026,275 @@ class PenpotAPI:
             'pageId': page_id
         }
 
+    def create_rectangle(
+        self,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        name: str = "Rectangle",
+        fill_color: str = "#000000",
+        fill_opacity: float = 1.0,
+        stroke_color: Optional[str] = None,
+        stroke_width: Optional[float] = None,
+        rx: float = 0,
+        ry: float = 0,
+        **kwargs
+    ) -> dict:
+        """
+        Create a rectangle shape object.
+
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            width: Width
+            height: Height
+            name: Shape name
+            fill_color: Fill color (hex format #RRGGBB)
+            fill_opacity: Fill opacity (0.0 to 1.0)
+            stroke_color: Optional stroke/border color
+            stroke_width: Optional stroke width
+            rx: Corner radius X
+            ry: Corner radius Y
+            **kwargs: Additional shape properties
+
+        Returns:
+            Rectangle object dictionary ready for add-obj change
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> rect = api.create_rectangle(100, 200, 300, 150, fill_color="#FF0000")
+            >>> rect_id = api.generate_session_id()
+            >>> change = api.create_add_obj_change(rect_id, "page-id", rect)
+        """
+        rect = {
+            'type': 'rect',
+            'name': name,
+            'x': x,
+            'y': y,
+            'width': width,
+            'height': height,
+            'fills': [{
+                'fillColor': fill_color,
+                'fillOpacity': fill_opacity
+            }]
+        }
+
+        if rx > 0 or ry > 0:
+            rect['rx'] = rx
+            rect['ry'] = ry
+
+        if stroke_color and stroke_width:
+            rect['strokes'] = [{
+                'strokeColor': stroke_color,
+                'strokeWidth': stroke_width
+            }]
+
+        # Merge any additional kwargs
+        rect.update(kwargs)
+
+        return rect
+
+    def create_circle(
+        self,
+        cx: float,
+        cy: float,
+        radius: float,
+        name: str = "Circle",
+        fill_color: str = "#000000",
+        fill_opacity: float = 1.0,
+        stroke_color: Optional[str] = None,
+        stroke_width: Optional[float] = None,
+        **kwargs
+    ) -> dict:
+        """
+        Create a circle/ellipse shape object.
+
+        Args:
+            cx: Center X coordinate
+            cy: Center Y coordinate
+            radius: Radius (for circle) or use width/height for ellipse
+            name: Shape name
+            fill_color: Fill color
+            fill_opacity: Fill opacity
+            stroke_color: Optional stroke color
+            stroke_width: Optional stroke width
+            **kwargs: Additional properties (e.g., width, height for ellipse)
+
+        Returns:
+            Circle object dictionary
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> circle = api.create_circle(150, 150, 50, fill_color="#00FF00")
+            >>> circle_id = api.generate_session_id()
+            >>> change = api.create_add_obj_change(circle_id, "page-id", circle)
+        """
+        # Circle is positioned by top-left corner in Penpot
+        circle = {
+            'type': 'circle',
+            'name': name,
+            'x': cx - radius,
+            'y': cy - radius,
+            'width': radius * 2,
+            'height': radius * 2,
+            'fills': [{
+                'fillColor': fill_color,
+                'fillOpacity': fill_opacity
+            }]
+        }
+
+        if stroke_color and stroke_width:
+            circle['strokes'] = [{
+                'strokeColor': stroke_color,
+                'strokeWidth': stroke_width
+            }]
+
+        circle.update(kwargs)
+
+        return circle
+
+    def create_text(
+        self,
+        x: float,
+        y: float,
+        content: str,
+        name: str = "Text",
+        font_size: int = 16,
+        font_family: str = "Work Sans",
+        fill_color: str = "#000000",
+        font_weight: str = "normal",
+        text_align: str = "left",
+        **kwargs
+    ) -> dict:
+        """
+        Create a text shape object.
+
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            content: Text content
+            name: Shape name
+            font_size: Font size in pixels
+            font_family: Font family name
+            fill_color: Text color
+            font_weight: Font weight (normal, bold, etc.)
+            text_align: Text alignment (left, center, right)
+            **kwargs: Additional properties
+
+        Returns:
+            Text object dictionary
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> text = api.create_text(10, 20, "Hello World", font_size=24)
+            >>> text_id = api.generate_session_id()
+            >>> change = api.create_add_obj_change(text_id, "page-id", text)
+        """
+        text = {
+            'type': 'text',
+            'name': name,
+            'x': x,
+            'y': y,
+            'content': content,
+            'fills': [{
+                'fillColor': fill_color,
+                'fillOpacity': 1.0
+            }],
+            'fontSize': font_size,
+            'fontFamily': font_family,
+            'fontWeight': font_weight,
+            'textAlign': text_align
+        }
+
+        text.update(kwargs)
+
+        return text
+
+    def create_frame(
+        self,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        name: str = "Frame",
+        background_color: Optional[str] = None,
+        **kwargs
+    ) -> dict:
+        """
+        Create a frame (artboard) object.
+
+        Frames are containers for other objects, similar to artboards.
+
+        Args:
+            x: X coordinate
+            y: Y coordinate
+            width: Width
+            height: Height
+            name: Frame name
+            background_color: Optional background color
+            **kwargs: Additional properties
+
+        Returns:
+            Frame object dictionary
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> frame = api.create_frame(0, 0, 375, 812, name="iPhone", background_color="#FFFFFF")
+            >>> frame_id = api.generate_session_id()
+            >>> change = api.create_add_obj_change(frame_id, "page-id", frame)
+        """
+        frame = {
+            'type': 'frame',
+            'name': name,
+            'x': x,
+            'y': y,
+            'width': width,
+            'height': height
+        }
+
+        if background_color:
+            frame['fills'] = [{
+                'fillColor': background_color,
+                'fillOpacity': 1.0
+            }]
+
+        frame.update(kwargs)
+
+        return frame
+
+    def create_group(
+        self,
+        name: str = "Group",
+        **kwargs
+    ) -> dict:
+        """
+        Create a group container object.
+
+        Groups are containers that organize multiple objects.
+
+        Args:
+            name: Group name
+            **kwargs: Additional properties
+
+        Returns:
+            Group object dictionary
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> group = api.create_group(name="My Group")
+            >>> group_id = api.generate_session_id()
+            >>> change = api.create_add_obj_change(group_id, "page-id", group)
+        """
+        group = {
+            'type': 'group',
+            'name': name
+        }
+
+        group.update(kwargs)
+
+        return group
+
     def create_file(
         self,
         name: str,
