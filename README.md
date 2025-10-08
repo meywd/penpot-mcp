@@ -19,8 +19,11 @@
   <a href="https://pypi.org/project/penpot-mcp/">
     <img src="https://img.shields.io/pypi/v/penpot-mcp" alt="PyPI version">
   </a>
-  <a href="https://github.com/montevive/penpot-mcp/actions">
-    <img src="https://img.shields.io/github/workflow/status/montevive/penpot-mcp/CI" alt="Build Status">
+  <a href="https://github.com/montevive/penpot-mcp/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/montevive/penpot-mcp/ci.yml?branch=main&label=tests" alt="CI Status">
+  </a>
+  <a href="https://codecov.io/gh/montevive/penpot-mcp">
+    <img src="https://codecov.io/gh/montevive/penpot-mcp/branch/main/graph/badge.svg" alt="Coverage">
   </a>
 </p>
 
