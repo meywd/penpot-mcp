@@ -77,13 +77,25 @@ penpot-validate path/to/penpot_file.json
 
 ### Available Tools/Functions
 
+**File Management:**
 - `list_projects`: Get all Penpot projects
 - `get_project_files`: List files in a project
 - `get_file`: Retrieve and cache file data
+- `create_file`: Create new Penpot design file
+- `delete_file`: Delete a Penpot file
+- `rename_file`: Rename a Penpot file
+
+**Design Exploration:**
 - `search_object`: Search design objects by name (regex)
 - `get_object_tree`: Get filtered object tree with screenshot
 - `export_object`: Export design objects as images
 - `penpot_tree_schema`: Get schema for object tree fields
+
+**Shape Creation (Phase 2):**
+- `add_rectangle`: Add a rectangle to the design
+- `add_circle`: Add a circle to the design
+- `add_text`: Add text to the design
+- `add_frame`: Create a new frame (artboard) in the design
 
 ### Environment Configuration
 
@@ -122,6 +134,70 @@ DEBUG=true               # debug logging
 4. Get tree schema → Understand available fields
 5. Get object tree → Retrieve structure with screenshot
 6. Export if needed → Get rendered component image
+
+### Common Workflow for Creating Designs
+
+1. Create or locate file → Use `create_file` or `get_file`
+2. Get page ID → From file data (e.g., file['data']['pages'][0]['id'])
+3. Create shapes → Use `add_rectangle`, `add_circle`, `add_text`, or `add_frame`
+4. Nest in frames → Use `frame_id` parameter to add shapes inside frames
+
+**Example: Creating a Simple UI Layout**
+
+```python
+# 1. Create a new file
+file = create_file(name="Mobile UI", project_id="project-123")
+file_id = file['id']
+page_id = file['data']['pages'][0]['id']
+
+# 2. Create a frame (artboard) for mobile screen
+frame_result = add_frame(
+    file_id=file_id,
+    page_id=page_id,
+    x=0, y=0,
+    width=375, height=812,
+    name="iPhone 13",
+    background_color="#FFFFFF"
+)
+frame_id = frame_result['frameId']
+
+# 3. Add a header rectangle inside the frame
+header = add_rectangle(
+    file_id=file_id,
+    page_id=page_id,
+    x=0, y=0,
+    width=375, height=60,
+    name="Header",
+    fill_color="#4A90E2",
+    frame_id=frame_id
+)
+
+# 4. Add title text inside the frame
+title = add_text(
+    file_id=file_id,
+    page_id=page_id,
+    x=20, y=20,
+    content="My App",
+    name="Title",
+    font_size=24,
+    fill_color="#FFFFFF",
+    font_family="Work Sans",
+    frame_id=frame_id
+)
+
+# 5. Add a circular avatar
+avatar = add_circle(
+    file_id=file_id,
+    page_id=page_id,
+    cx=187, cy=150,
+    radius=40,
+    name="Avatar",
+    fill_color="#E0E0E0",
+    stroke_color="#CCCCCC",
+    stroke_width=2,
+    frame_id=frame_id
+)
+```
 
 ### Testing Patterns
 
