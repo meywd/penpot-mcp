@@ -213,6 +213,82 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 return file_data
             except Exception as e:
                 return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def create_file(
+            name: str,
+            project_id: str,
+            is_shared: bool = False
+        ) -> dict:
+            """Create a new Penpot design file."""
+            try:
+                result = self.api.create_file(name, project_id, is_shared)
+                # Cache the newly created file
+                self.file_cache.set(result['id'], result)
+                return result
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def delete_file(file_id: str) -> dict:
+            """Delete a Penpot file."""
+            try:
+                result = self.api.delete_file(file_id)
+                # Remove from cache if present
+                if file_id in self.file_cache._cache:
+                    del self.file_cache._cache[file_id]
+                return result
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def rename_file(file_id: str, name: str) -> dict:
+            """Rename a Penpot file."""
+            try:
+                result = self.api.rename_file(file_id, name)
+                # Update cache if present
+                if file_id in self.file_cache._cache:
+                    self.file_cache._cache[file_id]['data']['name'] = name
+                return result
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def list_teams() -> dict:
+            """List all teams the user has access to."""
+            try:
+                teams = self.api.get_teams()
+                return {"teams": teams}
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def create_project(name: str, team_id: str) -> dict:
+            """Create a new project within a team."""
+            try:
+                result = self.api.create_project(name, team_id)
+                return result
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def rename_project(project_id: str, name: str) -> dict:
+            """Rename a project."""
+            try:
+                result = self.api.rename_project(project_id, name)
+                return result
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def delete_project(project_id: str) -> dict:
+            """Delete a project and all its files. WARNING: Permanent deletion!"""
+            try:
+                result = self.api.delete_project(project_id)
+                return result
+            except Exception as e:
+                return self._handle_api_error(e)
+        
         @self.mcp.tool()
         def export_object(
                 file_id: str,
