@@ -220,7 +220,20 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
             project_id: str,
             is_shared: bool = False
         ) -> dict:
-            """Create a new Penpot design file."""
+            """
+            Create a new Penpot design file.
+            
+            Args:
+                name: Name for the new file
+                project_id: ID of the project to create the file in
+                is_shared: Whether the file should be shared (default: False)
+            
+            Returns:
+                Created file information including file ID
+            
+            Example:
+                create_file(name="Login Screen", project_id="abc-123")
+            """
             try:
                 result = self.api.create_file(name, project_id, is_shared)
                 # Cache the newly created file
@@ -231,7 +244,18 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         
         @self.mcp.tool()
         def delete_file(file_id: str) -> dict:
-            """Delete a Penpot file."""
+            """
+            Delete a Penpot file.
+            
+            Args:
+                file_id: ID of the file to delete
+            
+            Returns:
+                Deletion confirmation
+            
+            Example:
+                delete_file(file_id="abc-123")
+            """
             try:
                 result = self.api.delete_file(file_id)
                 # Remove from cache if present
@@ -243,7 +267,19 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         
         @self.mcp.tool()
         def rename_file(file_id: str, name: str) -> dict:
-            """Rename a Penpot file."""
+            """
+            Rename a Penpot file.
+            
+            Args:
+                file_id: ID of the file to rename
+                name: New name for the file
+            
+            Returns:
+                Updated file information
+            
+            Example:
+                rename_file(file_id="abc-123", name="Updated Design")
+            """
             try:
                 result = self.api.rename_file(file_id, name)
                 # Update cache if present
@@ -255,7 +291,15 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         
         @self.mcp.tool()
         def list_teams() -> dict:
-            """List all teams the user has access to."""
+            """
+            List all teams the user has access to.
+            
+            Returns:
+                Dictionary containing list of teams
+            
+            Example:
+                list_teams()
+            """
             try:
                 teams = self.api.get_teams()
                 return {"teams": teams}
@@ -264,7 +308,19 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         
         @self.mcp.tool()
         def create_project(name: str, team_id: str) -> dict:
-            """Create a new project within a team."""
+            """
+            Create a new project within a team.
+            
+            Args:
+                name: Name for the new project
+                team_id: ID of the team to create the project in
+            
+            Returns:
+                Created project information including project ID
+            
+            Example:
+                create_project(name="Mobile App", team_id="team-123")
+            """
             try:
                 result = self.api.create_project(name, team_id)
                 return result
@@ -273,7 +329,19 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         
         @self.mcp.tool()
         def rename_project(project_id: str, name: str) -> dict:
-            """Rename a project."""
+            """
+            Rename a project.
+            
+            Args:
+                project_id: ID of the project to rename
+                name: New name for the project
+            
+            Returns:
+                Updated project information
+            
+            Example:
+                rename_project(project_id="proj-123", name="Redesign 2024")
+            """
             try:
                 result = self.api.rename_project(project_id, name)
                 return result
@@ -282,7 +350,20 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
         
         @self.mcp.tool()
         def delete_project(project_id: str) -> dict:
-            """Delete a project and all its files. WARNING: Permanent deletion!"""
+            """
+            Delete a project and all its files.
+            
+            WARNING: This is a permanent deletion operation!
+            
+            Args:
+                project_id: ID of the project to delete
+            
+            Returns:
+                Deletion confirmation
+            
+            Example:
+                delete_project(project_id="proj-123")
+            """
             try:
                 result = self.api.delete_project(project_id)
                 return result

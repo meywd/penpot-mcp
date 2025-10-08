@@ -1206,9 +1206,10 @@ def test_rename_file_tool(mock_penpot_api):
     # Create mock cache with existing file
     from penpot_mcp.utils.cache import MemoryCache
     mock_cache = MemoryCache()
+    # Set cache correctly - no nested 'data' key in the data we're storing
     mock_cache.set("file-123", {
         "id": "file-123",
-        "data": {"name": "Old Name"}
+        "name": "Old Name"
     })
     
     # Create a callable that matches what would be registered
@@ -1217,11 +1218,8 @@ def test_rename_file_tool(mock_penpot_api):
             result = mock_penpot_api.rename_file(file_id, name)
             # Update cache if present - accessing internal _cache structure
             if file_id in mock_cache._cache:
-                # Get the wrapped cache entry
-                cache_entry = mock_cache._cache[file_id]
-                # Update the nested data structure
-                if 'data' in cache_entry['data']:
-                    cache_entry['data']['data']['name'] = name
+                # Update the name in the cache's data field
+                mock_cache._cache[file_id]['data']['name'] = name
             return result
         except Exception as e:
             return {"error": str(e)}
@@ -1239,7 +1237,8 @@ def test_rename_file_tool(mock_penpot_api):
     
     # Verify cache was updated - get returns unwrapped data
     cached = mock_cache.get("file-123")
-    assert cached["data"]["name"] == "New File Name"
+    assert cached["name"] == "New File Name"
+
 
 
 def test_list_teams_tool(mock_penpot_api):
