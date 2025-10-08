@@ -1,7 +1,9 @@
 import argparse
 import json
 import os
-from typing import Any, Dict, List, Optional, Union
+import uuid
+from contextlib import contextmanager
+from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
 import requests
 from dotenv import load_dotenv
@@ -734,6 +736,75 @@ class PenpotAPI:
                 print(f"\nSaved file data to {filename}")
 
         return data
+
+    def generate_session_id(self) -> str:
+        """
+        Generate a new session UUID for file editing.
+        
+        Returns:
+            UUID string without ~u prefix
+            
+        Example:
+            session_id = api.generate_session_id()
+            # Returns: "123e4567-e89b-12d3-a456-426614174000"
+        """
+        return str(uuid.uuid4())
+
+    def get_file_revision(self, file_id: str) -> int:
+        """
+        Get the current revision number for a file.
+        
+        This extracts the revn field from the file data.
+        
+        Args:
+            file_id: UUID of the file
+            
+        Returns:
+            Current revision number (integer)
+            
+        Example:
+            revn = api.get_file_revision("file-123")
+            # Use this revn when calling update_file
+        """
+        file_data = self.get_file(file_id)
+        
+        # Revision number is in the root of file data
+        revn = file_data.get('revn', 0)
+        
+        if self.debug:
+            print(f"Current revision for file {file_id}: {revn}")
+            
+        return revn
+
+    @contextmanager
+    def editing_session(self, file_id: str) -> Generator[Tuple[str, int], None, None]:
+        """
+        Context manager for file editing sessions.
+        
+        Automatically manages session ID and revision numbers.
+        
+        Args:
+            file_id: UUID of the file to edit
+            
+        Yields:
+            Tuple of (session_id, current_revn)
+            
+        Example:
+            with api.editing_session("file-123") as (session_id, revn):
+                changes = [...]
+                api.update_file(file_id, session_id, revn, changes)
+        """
+        session_id = self.generate_session_id()
+        revn = self.get_file_revision(file_id)
+        
+        if self.debug:
+            print(f"Starting editing session {session_id} at revision {revn}")
+            
+        try:
+            yield (session_id, revn)
+        finally:
+            if self.debug:
+                print(f"Ending editing session {session_id}")
 
     def create_file(
         self,
