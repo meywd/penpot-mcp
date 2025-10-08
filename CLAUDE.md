@@ -77,16 +77,27 @@ penpot-validate path/to/penpot_file.json
 
 ### Available Tools/Functions
 
-#### Query and Navigation Tools
+**File Management:**
 - `list_projects`: Get all Penpot projects
 - `get_project_files`: List files in a project
 - `get_file`: Retrieve and cache file data
+- `create_file`: Create new Penpot design file
+- `delete_file`: Delete a Penpot file
+- `rename_file`: Rename a Penpot file
+
+**Design Exploration:**
 - `search_object`: Search design objects by name (regex)
 - `get_object_tree`: Get filtered object tree with screenshot
 - `export_object`: Export design objects as images
 - `penpot_tree_schema`: Get schema for object tree fields
 
-#### Object Modification Tools
+**Shape Creation (Phase 2):**
+- `add_rectangle`: Add a rectangle to the design
+- `add_circle`: Add a circle to the design
+- `add_text`: Add text to the design
+- `add_frame`: Create a new frame (artboard) in the design
+
+**Object Modification Tools (Phase 2):**
 - `move_object`: Move an object to new coordinates (x, y)
 - `resize_object`: Resize an object (width, height)
 - `change_object_color`: Change fill color and opacity
@@ -126,7 +137,7 @@ DEBUG=true               # debug logging
 ### Common Workflow for Code Generation
 
 1. List projects → Find target project
-2. Get project files → Locate design file  
+2. Get project files → Locate design file
 3. Search for component → Find specific element
 4. Get tree schema → Understand available fields
 5. Get object tree → Retrieve structure with screenshot
@@ -140,63 +151,93 @@ DEBUG=true               # debug logging
 create_project(team_id="team-123", name="My Design Project")
 
 # Create a new file
-create_file(name="My Design", project_id="project-123")
+file = create_file(name="Mobile UI", project_id="project-123")
+file_id = file['id']
+page_id = file['data']['pages'][0]['id']
 ```
 
 #### 2. Add Shapes
 ```python
-# Add a rectangle
-from penpot_mcp.api import PenpotAPI
+# Create a frame (artboard) for mobile screen
+frame_result = add_frame(
+    file_id=file_id,
+    page_id=page_id,
+    x=0, y=0,
+    width=375, height=812,
+    name="iPhone 13",
+    background_color="#FFFFFF"
+)
+frame_id = frame_result['frameId']
 
-api = PenpotAPI()
-
-# Create a rectangle shape
-rect = api.create_rectangle(
-    x=100, y=100, 
-    width=200, height=150,
-    fill_color="#FF0000"
+# Add a header rectangle inside the frame
+header = add_rectangle(
+    file_id=file_id,
+    page_id=page_id,
+    x=0, y=0,
+    width=375, height=60,
+    name="Header",
+    fill_color="#4A90E2",
+    frame_id=frame_id
 )
 
-# Generate ID and create change
-rect_id = api.generate_session_id()
-change = api.create_add_obj_change(rect_id, "page-id", rect)
+# Add title text inside the frame
+title = add_text(
+    file_id=file_id,
+    page_id=page_id,
+    x=20, y=20,
+    content="My App",
+    name="Title",
+    font_size=24,
+    fill_color="#FFFFFF",
+    font_family="Work Sans",
+    frame_id=frame_id
+)
 
-# Apply change using editing session
-with api.editing_session("file-id") as (session_id, revn):
-    api.update_file("file-id", session_id, revn, [change])
+# Add a circular avatar
+avatar = add_circle(
+    file_id=file_id,
+    page_id=page_id,
+    cx=187, cy=150,
+    radius=40,
+    name="Avatar",
+    fill_color="#E0E0E0",
+    stroke_color="#CCCCCC",
+    stroke_width=2,
+    frame_id=frame_id
+)
 ```
 
 #### 3. Modify Shapes
 ```python
-# Move the rectangle
+# Move the header
 move_object(
-    file_id="file-123", 
-    object_id="rect-id", 
-    x=200, 
-    y=150
+    file_id="file-123",
+    object_id="header-id",
+    x=0,
+    y=10
 )
 
-# Resize it
+# Resize the avatar
 resize_object(
     file_id="file-123",
-    object_id="rect-id",
-    width=300,
-    height=200
+    object_id="avatar-id",
+    width=50,
+    height=50
 )
 
-# Change color
+# Change header color
 change_object_color(
     file_id="file-123",
-    object_id="rect-id",
+    object_id="header-id",
     fill_color="#00FF00",
     fill_opacity=0.8
 )
 
-# Rotate it
+# Rotate title
 rotate_object(
     file_id="file-123",
-    object_id="rect-id",
-    rotation=45
+    object_id="title-id",
+    rotation=5
 )
 ```
 

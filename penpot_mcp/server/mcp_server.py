@@ -764,6 +764,247 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 return {'objects': matches}
             except Exception as e:
                 return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def add_rectangle(
+            file_id: str,
+            page_id: str,
+            x: float,
+            y: float,
+            width: float,
+            height: float,
+            name: str = "Rectangle",
+            fill_color: str = "#000000",
+            stroke_color: Optional[str] = None,
+            stroke_width: Optional[float] = None,
+            frame_id: Optional[str] = None
+        ) -> dict:
+            """
+            Add a rectangle to the design.
+
+            Args:
+                file_id: ID of the file to add to
+                page_id: ID of the page to add to
+                x: X coordinate
+                y: Y coordinate
+                width: Rectangle width
+                height: Rectangle height
+                name: Name for the rectangle
+                fill_color: Fill color (hex format, e.g., #FF0000)
+                stroke_color: Optional border color
+                stroke_width: Optional border width
+                frame_id: Optional parent frame ID
+
+            Returns:
+                Result with created object ID
+
+            Example:
+                add_rectangle(
+                    file_id="file-123",
+                    page_id="page-456",
+                    x=100, y=100,
+                    width=200, height=150,
+                    fill_color="#FF0000"
+                )
+            """
+            try:
+                # Generate ID for new object
+                obj_id = self.api.generate_session_id()
+
+                # Get session and revision
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    # Create rectangle object
+                    rect = self.api.create_rectangle(
+                        x, y, width, height,
+                        name=name,
+                        fill_color=fill_color,
+                        stroke_color=stroke_color,
+                        stroke_width=stroke_width
+                    )
+
+                    # Create add change
+                    change = self.api.create_add_obj_change(
+                        obj_id, page_id, rect, frame_id=frame_id
+                    )
+
+                    # Apply change
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": obj_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def add_circle(
+            file_id: str,
+            page_id: str,
+            cx: float,
+            cy: float,
+            radius: float,
+            name: str = "Circle",
+            fill_color: str = "#000000",
+            stroke_color: Optional[str] = None,
+            stroke_width: Optional[float] = None,
+            frame_id: Optional[str] = None
+        ) -> dict:
+            """
+            Add a circle to the design.
+
+            Args:
+                file_id: ID of the file
+                page_id: ID of the page
+                cx: Center X coordinate
+                cy: Center Y coordinate
+                radius: Circle radius
+                name: Name for the circle
+                fill_color: Fill color
+                stroke_color: Optional border color
+                stroke_width: Optional border width
+                frame_id: Optional parent frame ID
+
+            Returns:
+                Result with created object ID
+            """
+            try:
+                obj_id = self.api.generate_session_id()
+
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    circle = self.api.create_circle(
+                        cx, cy, radius,
+                        name=name,
+                        fill_color=fill_color,
+                        stroke_color=stroke_color,
+                        stroke_width=stroke_width
+                    )
+
+                    change = self.api.create_add_obj_change(
+                        obj_id, page_id, circle, frame_id=frame_id
+                    )
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": obj_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def add_text(
+            file_id: str,
+            page_id: str,
+            x: float,
+            y: float,
+            content: str,
+            name: str = "Text",
+            font_size: int = 16,
+            fill_color: str = "#000000",
+            font_family: str = "Work Sans",
+            frame_id: Optional[str] = None
+        ) -> dict:
+            """
+            Add text to the design.
+
+            Args:
+                file_id: ID of the file
+                page_id: ID of the page
+                x: X coordinate
+                y: Y coordinate
+                content: Text content
+                name: Name for the text object
+                font_size: Font size in pixels
+                fill_color: Text color
+                font_family: Font family name
+                frame_id: Optional parent frame ID
+
+            Returns:
+                Result with created object ID
+            """
+            try:
+                obj_id = self.api.generate_session_id()
+
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    text = self.api.create_text(
+                        x, y, content,
+                        name=name,
+                        font_size=font_size,
+                        fill_color=fill_color,
+                        font_family=font_family
+                    )
+
+                    change = self.api.create_add_obj_change(
+                        obj_id, page_id, text, frame_id=frame_id
+                    )
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": obj_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def add_frame(
+            file_id: str,
+            page_id: str,
+            x: float,
+            y: float,
+            width: float,
+            height: float,
+            name: str = "Frame",
+            background_color: Optional[str] = None
+        ) -> dict:
+            """
+            Create a new frame (artboard) in the design.
+
+            Frames act as containers for other objects.
+
+            Args:
+                file_id: ID of the file
+                page_id: ID of the page
+                x: X coordinate
+                y: Y coordinate
+                width: Frame width
+                height: Frame height
+                name: Name for the frame
+                background_color: Optional background color
+
+            Returns:
+                Result with created frame ID
+            """
+            try:
+                obj_id = self.api.generate_session_id()
+
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    frame = self.api.create_frame(
+                        x, y, width, height,
+                        name=name,
+                        background_color=background_color
+                    )
+
+                    change = self.api.create_add_obj_change(
+                        obj_id, page_id, frame
+                    )
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "frameId": obj_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
         if include_resource_tools:
             @self.mcp.tool()
             def penpot_schema() -> dict:
