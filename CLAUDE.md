@@ -97,6 +97,14 @@ penpot-validate path/to/penpot_file.json
 - `add_text`: Add text to the design
 - `add_frame`: Create a new frame (artboard) in the design
 
+**Object Modification Tools (Phase 2):**
+- `move_object`: Move an object to new coordinates (x, y)
+- `resize_object`: Resize an object (width, height)
+- `change_object_color`: Change fill color and opacity
+- `rotate_object`: Rotate an object by degrees
+- `delete_object`: Delete an object from a page
+- `apply_design_changes`: Apply multiple changes atomically
+
 ### Environment Configuration
 
 Create a `.env` file with:
@@ -129,28 +137,28 @@ DEBUG=true               # debug logging
 ### Common Workflow for Code Generation
 
 1. List projects → Find target project
-2. Get project files → Locate design file  
+2. Get project files → Locate design file
 3. Search for component → Find specific element
 4. Get tree schema → Understand available fields
 5. Get object tree → Retrieve structure with screenshot
 6. Export if needed → Get rendered component image
 
-### Common Workflow for Creating Designs
+### Complete Design Workflow Example
 
-1. Create or locate file → Use `create_file` or `get_file`
-2. Get page ID → From file data (e.g., file['data']['pages'][0]['id'])
-3. Create shapes → Use `add_rectangle`, `add_circle`, `add_text`, or `add_frame`
-4. Nest in frames → Use `frame_id` parameter to add shapes inside frames
-
-**Example: Creating a Simple UI Layout**
-
+#### 1. Create File and Project
 ```python
-# 1. Create a new file
+# Create a new project
+create_project(team_id="team-123", name="My Design Project")
+
+# Create a new file
 file = create_file(name="Mobile UI", project_id="project-123")
 file_id = file['id']
 page_id = file['data']['pages'][0]['id']
+```
 
-# 2. Create a frame (artboard) for mobile screen
+#### 2. Add Shapes
+```python
+# Create a frame (artboard) for mobile screen
 frame_result = add_frame(
     file_id=file_id,
     page_id=page_id,
@@ -161,7 +169,7 @@ frame_result = add_frame(
 )
 frame_id = frame_result['frameId']
 
-# 3. Add a header rectangle inside the frame
+# Add a header rectangle inside the frame
 header = add_rectangle(
     file_id=file_id,
     page_id=page_id,
@@ -172,7 +180,7 @@ header = add_rectangle(
     frame_id=frame_id
 )
 
-# 4. Add title text inside the frame
+# Add title text inside the frame
 title = add_text(
     file_id=file_id,
     page_id=page_id,
@@ -185,7 +193,7 @@ title = add_text(
     frame_id=frame_id
 )
 
-# 5. Add a circular avatar
+# Add a circular avatar
 avatar = add_circle(
     file_id=file_id,
     page_id=page_id,
@@ -196,6 +204,87 @@ avatar = add_circle(
     stroke_color="#CCCCCC",
     stroke_width=2,
     frame_id=frame_id
+)
+```
+
+#### 3. Modify Shapes
+```python
+# Move the header
+move_object(
+    file_id="file-123",
+    object_id="header-id",
+    x=0,
+    y=10
+)
+
+# Resize the avatar
+resize_object(
+    file_id="file-123",
+    object_id="avatar-id",
+    width=50,
+    height=50
+)
+
+# Change header color
+change_object_color(
+    file_id="file-123",
+    object_id="header-id",
+    fill_color="#00FF00",
+    fill_opacity=0.8
+)
+
+# Rotate title
+rotate_object(
+    file_id="file-123",
+    object_id="title-id",
+    rotation=5
+)
+```
+
+#### 4. Batch Operations
+```python
+# Apply multiple changes atomically
+changes = [
+    {
+        "type": "mod-obj",
+        "id": "rect-1",
+        "operations": [
+            {"type": "set", "attr": "x", "val": 100},
+            {"type": "set", "attr": "y", "val": 100}
+        ]
+    },
+    {
+        "type": "mod-obj",
+        "id": "rect-2",
+        "operations": [
+            {"type": "set", "attr": "x", "val": 200},
+            {"type": "set", "attr": "y", "val": 200}
+        ]
+    }
+]
+
+apply_design_changes(file_id="file-123", changes=changes)
+```
+
+#### 5. Delete Shapes
+```python
+# Delete an object
+delete_object(
+    file_id="file-123",
+    page_id="page-456",
+    object_id="rect-id"
+)
+```
+
+#### 6. Export Result
+```python
+# Export the final design
+export_object(
+    file_id="file-123",
+    page_id="page-456",
+    object_id="frame-id",
+    export_type="png",
+    scale=2
 )
 ```
 

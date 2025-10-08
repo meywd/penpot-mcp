@@ -424,6 +424,246 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                         os.remove(temp_filename)
                     except Exception as e:
                         print(f"Warning: Failed to delete temporary file {temp_filename}: {str(e)}")
+        
+        @self.mcp.tool()
+        def move_object(
+            file_id: str,
+            object_id: str,
+            x: float,
+            y: float
+        ) -> dict:
+            """
+            Move an object to a new position.
+
+            Args:
+                file_id: ID of the file
+                object_id: ID of the object to move
+                x: New X coordinate
+                y: New Y coordinate
+
+            Returns:
+                Success result with new revision
+
+            Example:
+                move_object(file_id="file-123", object_id="obj-456", x=200, y=150)
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    # Create modification operations
+                    ops = [
+                        self.api.create_set_operation('x', x),
+                        self.api.create_set_operation('y', y)
+                    ]
+
+                    # Create modify change
+                    change = self.api.create_mod_obj_change(object_id, ops)
+
+                    # Apply change
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": object_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def resize_object(
+            file_id: str,
+            object_id: str,
+            width: float,
+            height: float
+        ) -> dict:
+            """
+            Resize an object.
+
+            Args:
+                file_id: ID of the file
+                object_id: ID of the object to resize
+                width: New width
+                height: New height
+
+            Returns:
+                Success result
+
+            Example:
+                resize_object(file_id="file-123", object_id="obj-456", width=300, height=200)
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    ops = [
+                        self.api.create_set_operation('width', width),
+                        self.api.create_set_operation('height', height)
+                    ]
+
+                    change = self.api.create_mod_obj_change(object_id, ops)
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": object_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def change_object_color(
+            file_id: str,
+            object_id: str,
+            fill_color: str,
+            fill_opacity: float = 1.0
+        ) -> dict:
+            """
+            Change the fill color of an object.
+
+            Args:
+                file_id: ID of the file
+                object_id: ID of the object
+                fill_color: New fill color (hex format, e.g., #FF0000)
+                fill_opacity: Fill opacity (0.0 to 1.0)
+
+            Returns:
+                Success result
+
+            Example:
+                change_object_color(file_id="file-123", object_id="obj-456", fill_color="#FF0000")
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    # Set new fill
+                    fills = [{
+                        'fillColor': fill_color,
+                        'fillOpacity': fill_opacity
+                    }]
+
+                    ops = [
+                        self.api.create_set_operation('fills', fills)
+                    ]
+
+                    change = self.api.create_mod_obj_change(object_id, ops)
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": object_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def rotate_object(
+            file_id: str,
+            object_id: str,
+            rotation: float
+        ) -> dict:
+            """
+            Rotate an object.
+
+            Args:
+                file_id: ID of the file
+                object_id: ID of the object
+                rotation: Rotation angle in degrees (0-360)
+
+            Returns:
+                Success result
+
+            Example:
+                rotate_object(file_id="file-123", object_id="obj-456", rotation=45)
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    ops = [
+                        self.api.create_set_operation('rotation', rotation)
+                    ]
+
+                    change = self.api.create_mod_obj_change(object_id, ops)
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": object_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def delete_object(
+            file_id: str,
+            page_id: str,
+            object_id: str
+        ) -> dict:
+            """
+            Delete an object from the design.
+
+            Args:
+                file_id: ID of the file
+                page_id: ID of the page containing the object
+                object_id: ID of the object to delete
+
+            Returns:
+                Success result
+
+            Example:
+                delete_object(file_id="file-123", page_id="page-456", object_id="obj-789")
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    # Create delete change
+                    change = self.api.create_del_obj_change(object_id, page_id)
+
+                    # Apply change
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "deletedObjectId": object_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+        
+        @self.mcp.tool()
+        def apply_design_changes(
+            file_id: str,
+            changes: List[dict]
+        ) -> dict:
+            """
+            Apply multiple design changes atomically.
+
+            This is a power tool for complex multi-step operations.
+
+            Args:
+                file_id: ID of the file
+                changes: List of change operations (from change builders)
+
+            Returns:
+                Success result
+
+            Example:
+                changes = [
+                    {"type": "add-obj", "id": "obj-1", "pageId": "page-1", "obj": {...}},
+                    {"type": "mod-obj", "id": "obj-2", "operations": [...]},
+                    {"type": "del-obj", "id": "obj-3", "pageId": "page-1"}
+                ]
+                apply_design_changes(file_id="file-123", changes=changes)
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    result = self.api.update_file(file_id, session_id, revn, changes)
+
+                    return {
+                        "success": True,
+                        "revn": result.get('revn'),
+                        "changesApplied": len(changes)
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+        
         @self.mcp.tool()
         def get_object_tree(
             file_id: str, 
