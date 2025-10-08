@@ -581,6 +581,156 @@ class PenpotAPI:
 
         return data
 
+    def create_file(
+        self,
+        name: str,
+        project_id: str,
+        is_shared: bool = False,
+        features: Optional[List[str]] = None,
+        file_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a new Penpot file.
+
+        Args:
+            name: File name
+            project_id: UUID of the project to create file in
+            is_shared: Whether the file is shared
+            features: Optional list of feature flags
+            file_id: Optional custom file UUID (auto-generated if not provided)
+
+        Returns:
+            Dictionary containing created file information including:
+            - id: File UUID
+            - name: File name
+            - projectId: Project UUID
+            - created: Creation timestamp
+            - modified: Last modified timestamp
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> result = api.create_file(name="My Design", project_id="abc-123")
+            >>> print(result['id'])
+        """
+        url = f"{self.base_url}/rpc/command/create-file"
+
+        payload = {
+            "name": name,
+            "project-id": project_id,
+            "is-shared": is_shared
+        }
+
+        if file_id:
+            payload["id"] = file_id
+        if features:
+            payload["features"] = features
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nFile created: {data.get('name')} (ID: {data.get('id')})")
+
+        return data
+
+    def delete_file(self, file_id: str) -> Dict[str, Any]:
+        """
+        Delete a Penpot file.
+
+        Args:
+            file_id: UUID of the file to delete
+
+        Returns:
+            Success confirmation. If API returns empty response,
+            returns {"success": True, "id": file_id}
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> result = api.delete_file(file_id="abc-123")
+        """
+        url = f"{self.base_url}/rpc/command/delete-file"
+
+        payload = {
+            "id": file_id
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        
+        # Some DELETE operations might return empty responses or just status codes
+        try:
+            data = response.json()
+        except Exception:
+            # If no JSON response, return success based on status code
+            data = {"success": True, "id": file_id}
+
+        if self.debug:
+            print(f"\nFile deleted: {file_id}")
+
+        return data
+
+    def rename_file(self, file_id: str, name: str) -> Dict[str, Any]:
+        """
+        Rename a Penpot file.
+
+        Args:
+            file_id: UUID of the file to rename
+            name: New file name
+
+        Returns:
+            Updated file information
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> result = api.rename_file(file_id="abc-123", name="New Name")
+            >>> print(result['name'])
+        """
+        url = f"{self.base_url}/rpc/command/rename-file"
+
+        payload = {
+            "id": file_id,
+            "name": name
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nFile renamed to: {name} (ID: {file_id})")
+
+        return data
+
+    def set_file_shared(self, file_id: str, is_shared: bool) -> Dict[str, Any]:
+        """
+        Set file sharing status.
+
+        Args:
+            file_id: UUID of the file
+            is_shared: Whether the file should be shared
+
+        Returns:
+            Updated file information
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> result = api.set_file_shared(file_id="abc-123", is_shared=True)
+            >>> print(result['isShared'])
+        """
+        url = f"{self.base_url}/rpc/command/set-file-shared"
+
+        payload = {
+            "id": file_id,
+            "is-shared": is_shared
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            shared_status = "shared" if is_shared else "not shared"
+            print(f"\nFile set to {shared_status}: {file_id}")
+
+        return data
+
     def create_export(self, file_id: str, page_id: str, object_id: str,
                       export_type: str = "png", scale: int = 1,
                       email: Optional[str] = None, password: Optional[str] = None,
