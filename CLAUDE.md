@@ -77,6 +77,7 @@ penpot-validate path/to/penpot_file.json
 
 ### Available Tools/Functions
 
+#### Query and Navigation Tools
 - `list_projects`: Get all Penpot projects
 - `get_project_files`: List files in a project
 - `get_file`: Retrieve and cache file data
@@ -84,6 +85,14 @@ penpot-validate path/to/penpot_file.json
 - `get_object_tree`: Get filtered object tree with screenshot
 - `export_object`: Export design objects as images
 - `penpot_tree_schema`: Get schema for object tree fields
+
+#### Object Modification Tools
+- `move_object`: Move an object to new coordinates (x, y)
+- `resize_object`: Resize an object (width, height)
+- `change_object_color`: Change fill color and opacity
+- `rotate_object`: Rotate an object by degrees
+- `delete_object`: Delete an object from a page
+- `apply_design_changes`: Apply multiple changes atomically
 
 ### Environment Configuration
 
@@ -122,6 +131,121 @@ DEBUG=true               # debug logging
 4. Get tree schema → Understand available fields
 5. Get object tree → Retrieve structure with screenshot
 6. Export if needed → Get rendered component image
+
+### Complete Design Workflow Example
+
+#### 1. Create File and Project
+```python
+# Create a new project
+create_project(team_id="team-123", name="My Design Project")
+
+# Create a new file
+create_file(name="My Design", project_id="project-123")
+```
+
+#### 2. Add Shapes
+```python
+# Add a rectangle
+from penpot_mcp.api import PenpotAPI
+
+api = PenpotAPI()
+
+# Create a rectangle shape
+rect = api.create_rectangle(
+    x=100, y=100, 
+    width=200, height=150,
+    fill_color="#FF0000"
+)
+
+# Generate ID and create change
+rect_id = api.generate_session_id()
+change = api.create_add_obj_change(rect_id, "page-id", rect)
+
+# Apply change using editing session
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [change])
+```
+
+#### 3. Modify Shapes
+```python
+# Move the rectangle
+move_object(
+    file_id="file-123", 
+    object_id="rect-id", 
+    x=200, 
+    y=150
+)
+
+# Resize it
+resize_object(
+    file_id="file-123",
+    object_id="rect-id",
+    width=300,
+    height=200
+)
+
+# Change color
+change_object_color(
+    file_id="file-123",
+    object_id="rect-id",
+    fill_color="#00FF00",
+    fill_opacity=0.8
+)
+
+# Rotate it
+rotate_object(
+    file_id="file-123",
+    object_id="rect-id",
+    rotation=45
+)
+```
+
+#### 4. Batch Operations
+```python
+# Apply multiple changes atomically
+changes = [
+    {
+        "type": "mod-obj",
+        "id": "rect-1",
+        "operations": [
+            {"type": "set", "attr": "x", "val": 100},
+            {"type": "set", "attr": "y", "val": 100}
+        ]
+    },
+    {
+        "type": "mod-obj",
+        "id": "rect-2",
+        "operations": [
+            {"type": "set", "attr": "x", "val": 200},
+            {"type": "set", "attr": "y", "val": 200}
+        ]
+    }
+]
+
+apply_design_changes(file_id="file-123", changes=changes)
+```
+
+#### 5. Delete Shapes
+```python
+# Delete an object
+delete_object(
+    file_id="file-123",
+    page_id="page-456",
+    object_id="rect-id"
+)
+```
+
+#### 6. Export Result
+```python
+# Export the final design
+export_object(
+    file_id="file-123",
+    page_id="page-456",
+    object_id="frame-id",
+    export_type="png",
+    scale=2
+)
+```
 
 ### Testing Patterns
 
