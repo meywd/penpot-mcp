@@ -353,15 +353,15 @@ class TestSearchExportTools:
     def test_export_object(self, tool_helper, test_file, test_page):
         """Test export_object tool."""
         # First create an object to export
-        with PenpotAPI(debug=True) as api:
-            with api.editing_session(test_file) as (session_id, revn):
-                obj_id = api.generate_session_id()
-                rect = api.create_rectangle(
-                    x=0, y=0, width=100, height=100,
-                    name="Export Test Rect"
-                )
-                change = api.create_add_obj_change(obj_id, test_page, rect)
-                api.update_file(test_file, session_id, revn, [change])
+        api = PenpotAPI(debug=True)
+        with api.editing_session(test_file) as (session_id, revn):
+            obj_id = api.generate_session_id()
+            rect = api.create_rectangle(
+                x=0, y=0, width=100, height=100,
+                name="Export Test Rect"
+            )
+            change = api.create_add_obj_change(obj_id, test_page, rect)
+            api.update_file(test_file, session_id, revn, [change])
 
         # Export it
         result = tool_helper(

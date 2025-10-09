@@ -852,14 +852,20 @@ class PenpotAPI:
         Returns:
             List of changes in Transit+JSON format
         """
+        def should_convert_to_keyword(key: str, value: str) -> bool:
+            """Determine if a string value should be converted to a Transit keyword.
+
+            Text content structure types (root, paragraph-set, paragraph) must remain
+            as strings, not keywords, for Penpot API compatibility.
+            """
+            keyword_fields = {'type', 'attr'}
+            text_content_types = {'root', 'paragraph-set', 'paragraph'}
+            return key in keyword_fields and value not in text_content_types
+
         def convert_value(key: str, value: Any) -> Any:
             """Convert a single value based on its key and type."""
             # UUID fields that need ~u prefix
             uuid_fields = {'id', 'pageId', 'frameId', 'parentId', 'obj-id'}
-            # Keyword fields that need ~: prefix for their values
-            keyword_fields = {'type', 'attr'}
-            # Text content type values that should remain as strings
-            text_content_types = {'root', 'paragraph-set', 'paragraph'}
 
             if isinstance(value, dict):
                 # Recursively convert nested dictionaries
@@ -872,7 +878,7 @@ class PenpotAPI:
                 if key in uuid_fields:
                     # Add ~u prefix to UUIDs (even short test IDs)
                     return f"~u{value}"
-                elif key in keyword_fields and value not in text_content_types:
+                elif should_convert_to_keyword(key, value):
                     # Add ~: prefix to keyword values (except text content types)
                     return f"~:{value}"
                 else:
@@ -1342,6 +1348,8 @@ class PenpotAPI:
             }]
         }
 
+        # NOTE: Property names use kebab-case (fill-color, font-size) as required by Penpot API
+        # This is intentional and differs from Python's snake_case or JavaScript's camelCase
         text = {
             'type': 'text',
             'name': name,
