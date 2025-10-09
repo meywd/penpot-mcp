@@ -119,16 +119,25 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 "error": str(e),
                 "status_code": e.response.status_code,
             }
-            # Try to extract error details from response body
+            # Try to extract error details from response body (limited to 2000 chars)
             try:
                 error_body = e.response.text
                 if error_body:
-                    error_dict["response_body"] = error_body
+                    # Limit response body to 2000 characters to avoid token limits
+                    max_body_length = 2000
+                    if len(error_body) > max_body_length:
+                        error_dict["response_body"] = error_body[:max_body_length] + "... (truncated)"
+                        error_dict["response_body_length"] = len(error_body)
+                    else:
+                        error_dict["response_body"] = error_body
+
                     # Try to parse as JSON for better formatting
                     try:
                         import json
                         error_json = json.loads(error_body)
-                        error_dict["response_json"] = error_json
+                        # Only include JSON if it's reasonably sized
+                        if len(str(error_json)) < 5000:
+                            error_dict["response_json"] = error_json
                     except:
                         pass
             except:
