@@ -134,6 +134,8 @@ penpot-validate path/to/penpot_file.json
 - `import_component`: Import a component from a library into the design
 - `sync_library`: Synchronize component instances with their library
 - `publish_as_library`: Publish a file as a shared component library
+- `unpublish_library`: Unpublish a file as a library
+- `get_file_libraries`: Get all libraries linked to a file
 
 **Library & Component System Helpers (API level):**
 - `get_file_libraries`: Get all libraries linked to a file
@@ -1129,20 +1131,24 @@ print(f"Library published: {publish_result['file']['name']}")
 #### Linking a Library and Using Components
 
 ```python
-# 1. Link the library to your design file
+# 1. Check what libraries are already linked (optional)
+linked_libs = get_file_libraries(file_id="design-file-123")
+print(f"Currently linked to {linked_libs['count']} libraries")
+
+# 2. Link the library to your design file
 link_result = link_library(
     file_id="design-file-123",
     library_id="library-file-456"
 )
 print("Library linked successfully")
 
-# 2. List available components from the library
+# 3. List available components from the library
 components_result = list_library_components(library_id="library-file-456")
 print(f"Found {components_result['count']} components:")
 for component in components_result['components']:
     print(f"  - {component['name']} (ID: {component['id']})")
 
-# 3. Import components into your design
+# 4. Import components into your design
 button_instance = import_component(
     file_id="design-file-123",
     page_id="page-1",
@@ -1162,6 +1168,14 @@ card_instance = import_component(
 )
 
 print("Components imported successfully")
+```
+
+#### Unpublishing a Library
+
+```python
+# Remove library status from a file
+unpublish_result = unpublish_library(file_id="library-file-456")
+print(f"Library unpublished: {unpublish_result['file']['name']}")
 ```
 
 #### Synchronizing Component Instances

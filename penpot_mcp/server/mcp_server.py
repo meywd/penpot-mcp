@@ -1689,6 +1689,61 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
             except Exception as e:
                 return self._handle_api_error(e)
 
+        @self.mcp.tool()
+        def unpublish_library(
+            file_id: str
+        ) -> dict:
+            """
+            Unpublish a file as a library.
+
+            Removes the library status from a file, making its components
+            no longer available for use in other files.
+
+            Args:
+                file_id: ID of the file to unpublish
+
+            Returns:
+                Updated file information
+
+            Example:
+                unpublish_library(file_id="abc-123")
+            """
+            try:
+                result = self.api.publish_library(file_id, publish=False)
+                return {"success": True, "file": result}
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def get_file_libraries(
+            file_id: str
+        ) -> dict:
+            """
+            Get all libraries linked to a file.
+
+            Returns a list of all component libraries that are currently
+            linked to the specified file, allowing you to discover which
+            libraries' components are available for use.
+
+            Args:
+                file_id: ID of the file
+
+            Returns:
+                List of linked libraries with their information
+
+            Example:
+                get_file_libraries(file_id="abc-123")
+            """
+            try:
+                libraries = self.api.get_file_libraries(file_id)
+                return {
+                    "success": True,
+                    "count": len(libraries),
+                    "libraries": libraries
+                }
+            except Exception as e:
+                return self._handle_api_error(e)
+
         if include_resource_tools:
             @self.mcp.tool()
             def penpot_schema() -> dict:

@@ -40,6 +40,11 @@ def mock_server():
         'is-shared': True
     })
 
+    server.api.get_file_libraries = MagicMock(return_value=[
+        {'id': 'lib-1', 'name': 'Design System'},
+        {'id': 'lib-2', 'name': 'Icon Library'}
+    ])
+
     return server
 
 
@@ -130,6 +135,34 @@ def test_publish_as_library_tool(mock_server):
     assert result['is-shared'] is True
 
 
+def test_unpublish_library_tool(mock_server):
+    """Test unpublish_library MCP tool."""
+    # Mock the unpublish response
+    mock_server.api.publish_library = MagicMock(return_value={
+        'id': 'file-123',
+        'is-shared': False
+    })
+    
+    result = mock_server.api.publish_library(
+        file_id='file-123',
+        publish=False
+    )
+
+    assert result['id'] == 'file-123'
+    assert result['is-shared'] is False
+
+
+def test_get_file_libraries_tool(mock_server):
+    """Test get_file_libraries MCP tool."""
+    result = mock_server.api.get_file_libraries(
+        file_id='file-123'
+    )
+
+    assert len(result) == 2
+    assert result[0]['name'] == 'Design System'
+    assert result[1]['name'] == 'Icon Library'
+
+
 def test_link_library_api_called_correctly(mock_server):
     """Test that link_library calls the API correctly."""
     mock_server.api.link_file_to_library.reset_mock()
@@ -210,6 +243,34 @@ def test_publish_as_library_api_called_correctly(mock_server):
     mock_server.api.publish_library.assert_called_once_with(
         file_id='test-file',
         publish=True
+    )
+
+
+def test_unpublish_library_api_called_correctly(mock_server):
+    """Test that unpublish_library calls the API correctly."""
+    mock_server.api.publish_library.reset_mock()
+    
+    mock_server.api.publish_library(
+        file_id='test-file',
+        publish=False
+    )
+
+    mock_server.api.publish_library.assert_called_once_with(
+        file_id='test-file',
+        publish=False
+    )
+
+
+def test_get_file_libraries_api_called_correctly(mock_server):
+    """Test that get_file_libraries calls the API correctly."""
+    mock_server.api.get_file_libraries.reset_mock()
+    
+    mock_server.api.get_file_libraries(
+        file_id='test-file'
+    )
+
+    mock_server.api.get_file_libraries.assert_called_once_with(
+        file_id='test-file'
     )
 
 
