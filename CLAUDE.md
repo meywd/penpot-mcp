@@ -111,6 +111,16 @@ penpot-validate path/to/penpot_file.json
 - `create_parent_operation`: Set object parent for grouping
 - `create_group`: Create group containers (already implemented in Phase 2)
 
+**Advanced Styling Helpers (Phase 3):**
+- `create_gradient_fill`: Create linear or radial gradient fills
+- `create_stroke`: Create stroke/border definitions with style, cap, and join options
+- `create_shadow`: Create drop shadow effects
+- `create_blur`: Create layer or background blur effects
+- `create_fill_operation`: Create operation to set fill(s) on an object
+- `create_stroke_operation`: Create operation to set stroke(s) on an object
+- `create_shadow_operation`: Create operation to set shadow(s) on an object
+- `create_blur_operation`: Create operation to set blur effect on an object
+
 ### Environment Configuration
 
 Create a `.env` file with:
@@ -486,6 +496,221 @@ changes = [
 
 with api.editing_session("file-id") as (session_id, revn):
     api.update_file("file-id", session_id, revn, changes)
+```
+
+### Advanced Styling Workflow (Phase 3)
+
+#### 1. Applying Gradients to Shapes
+
+```python
+# Create a rectangle with a linear gradient
+api = PenpotAPI()
+
+# Create rectangle
+rect = api.create_rectangle(x=100, y=100, width=200, height=100)
+rect_id = api.generate_session_id()
+
+# Create linear gradient (left to right)
+gradient = api.create_gradient_fill(
+    gradient_type='linear',
+    start_color='#ff0000',
+    end_color='#0000ff',
+    start_x=0.0,
+    start_y=0.0,
+    end_x=1.0,
+    end_y=0.0
+)
+
+# Apply gradient to rectangle
+rect['fills'] = [gradient]
+
+# Add to file
+change = api.create_add_obj_change(rect_id, "page-id", rect)
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [change])
+```
+
+#### 2. Applying Multiple Strokes
+
+```python
+# Add multiple strokes to create outline effects
+api = PenpotAPI()
+
+# Create circle
+circle = api.create_circle(cx=150, cy=150, radius=50)
+circle_id = api.generate_session_id()
+
+# Create outer thick stroke
+outer_stroke = api.create_stroke(
+    color='#000000',
+    width=5.0,
+    style='solid',
+    cap='round',
+    join='round'
+)
+
+# Create inner dashed stroke
+inner_stroke = api.create_stroke(
+    color='#ff0000',
+    width=2.0,
+    style='dashed',
+    cap='round',
+    join='round'
+)
+
+# Apply both strokes
+stroke_op = api.create_stroke_operation([outer_stroke, inner_stroke])
+
+# Create change
+change = api.create_mod_obj_change(circle_id, [stroke_op])
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [change])
+```
+
+#### 3. Adding Shadow Effects
+
+```python
+# Add drop shadow to text
+api = PenpotAPI()
+
+# Create text
+text = api.create_text(x=50, y=50, content="Hello World", font_size=48)
+text_id = api.generate_session_id()
+
+# Create drop shadow with semi-transparent color
+shadow = api.create_shadow(
+    color='#00000080',  # 50% transparent black
+    offset_x=2,
+    offset_y=2,
+    blur=4,
+    spread=1.0
+)
+
+# Apply shadow
+shadow_op = api.create_shadow_operation([shadow])
+
+# Create change
+change = api.create_mod_obj_change(text_id, [shadow_op])
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [change])
+```
+
+#### 4. Applying Blur Effects
+
+```python
+# Add layer blur to create depth effect
+api = PenpotAPI()
+
+rect_id = "existing-rect-id"
+
+# Create layer blur
+blur = api.create_blur(
+    blur_type='layer-blur',
+    value=10
+)
+
+# Apply blur
+blur_op = api.create_blur_operation(blur)
+
+# Create change
+change = api.create_mod_obj_change(rect_id, [blur_op])
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [change])
+```
+
+#### 5. Combining Multiple Style Effects
+
+```python
+# Apply gradient, stroke, shadow, and blur together
+api = PenpotAPI()
+
+# Create rectangle
+rect = api.create_rectangle(x=100, y=100, width=200, height=100)
+rect_id = api.generate_session_id()
+
+# Add rectangle to file first
+add_change = api.create_add_obj_change(rect_id, "page-id", rect)
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [add_change])
+
+# Now apply all styling effects
+# Create radial gradient
+gradient = api.create_gradient_fill(
+    gradient_type='radial',
+    start_color='#ff00ff',
+    end_color='#00ffff',
+    start_x=0.5,
+    start_y=0.5,
+    end_x=1.0,
+    end_y=1.0
+)
+fill_op = api.create_fill_operation([gradient])
+
+# Create stroke
+stroke = api.create_stroke(
+    color='#000000',
+    width=3.0,
+    style='solid'
+)
+stroke_op = api.create_stroke_operation([stroke])
+
+# Create shadow
+shadow = api.create_shadow(
+    color='#00000080',
+    offset_x=5,
+    offset_y=5,
+    blur=10
+)
+shadow_op = api.create_shadow_operation([shadow])
+
+# Create blur
+blur = api.create_blur('layer-blur', 5)
+blur_op = api.create_blur_operation(blur)
+
+# Apply all effects
+style_change = api.create_mod_obj_change(rect_id, [
+    fill_op,
+    stroke_op,
+    shadow_op,
+    blur_op
+])
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [style_change])
+```
+
+#### 6. Creating Shape with Gradient from Start
+
+```python
+# Create shape with gradient in one step
+api = PenpotAPI()
+
+# Create gradient
+gradient = api.create_gradient_fill(
+    gradient_type='linear',
+    start_color='#ff0000',
+    end_color='#ffff00',
+    start_x=0.0,
+    start_y=0.0,
+    end_x=1.0,
+    end_y=1.0  # Diagonal gradient
+)
+
+# Create circle with gradient
+circle = api.create_circle(cx=150, cy=150, radius=50)
+circle['fills'] = [gradient]  # Replace default fill with gradient
+
+# Add to file
+circle_id = api.generate_session_id()
+change = api.create_add_obj_change(circle_id, "page-id", circle)
+
+with api.editing_session("file-id") as (session_id, revn):
+    api.update_file("file-id", session_id, revn, [change])
 ```
 
 ### Testing Patterns
