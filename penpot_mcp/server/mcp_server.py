@@ -101,7 +101,7 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 "error_type": "cloudflare_protection",
                 "instructions": [
                     "Open your web browser and navigate to https://design.penpot.app",
-                    "Log in to your Penpot account", 
+                    "Log in to your Penpot account",
                     "Complete any CloudFlare human verification challenges if prompted",
                     "Once verified, try your request again"
                 ]
@@ -113,6 +113,27 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 "error_type": "api_error",
                 "status_code": getattr(e, 'status_code', None)
             }
+        # Handle HTTPError with response body
+        elif hasattr(e, 'response') and e.response is not None:
+            error_dict = {
+                "error": str(e),
+                "status_code": e.response.status_code,
+            }
+            # Try to extract error details from response body
+            try:
+                error_body = e.response.text
+                if error_body:
+                    error_dict["response_body"] = error_body
+                    # Try to parse as JSON for better formatting
+                    try:
+                        import json
+                        error_json = json.loads(error_body)
+                        error_dict["response_json"] = error_json
+                    except:
+                        pass
+            except:
+                pass
+            return error_dict
         else:
             return {"error": str(e)}
 
