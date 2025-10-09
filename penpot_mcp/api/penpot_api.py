@@ -1701,6 +1701,242 @@ class PenpotAPI:
         """
         return self.create_set_operation('blur', blur)
 
+    # ========== COMMENT & COLLABORATION METHODS ==========
+
+    def create_comment_thread(
+        self,
+        file_id: str,
+        page_id: str,
+        x: float,
+        y: float,
+        content: str,
+        frame_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a new comment thread at a specific position.
+
+        Args:
+            file_id: UUID of the file
+            page_id: UUID of the page
+            x: X position of comment marker
+            y: Y position of comment marker
+            content: Initial comment text
+            frame_id: Optional frame ID if comment is within a frame
+
+        Returns:
+            Created comment thread information including thread_id
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> thread = api.create_comment_thread(
+            ...     file_id="file-123",
+            ...     page_id="page-1",
+            ...     x=100, y=100,
+            ...     content="This button should be larger"
+            ... )
+            >>> print(thread['id'])
+        """
+        url = f"{self.base_url}/rpc/command/create-comment-thread"
+
+        payload = {
+            "file-id": file_id,
+            "page-id": page_id,
+            "position": {
+                "x": x,
+                "y": y
+            },
+            "content": content
+        }
+
+        if frame_id:
+            payload["frame-id"] = frame_id
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nComment thread created: {data.get('id')}")
+
+        return data
+
+    def add_comment(
+        self,
+        thread_id: str,
+        content: str
+    ) -> Dict[str, Any]:
+        """
+        Add a comment to an existing thread.
+
+        Args:
+            thread_id: UUID of the comment thread
+            content: Comment text
+
+        Returns:
+            Created comment information
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> comment = api.add_comment(
+            ...     thread_id="thread-123",
+            ...     content="I agree, let's increase it by 20%"
+            ... )
+        """
+        url = f"{self.base_url}/rpc/command/add-comment"
+
+        payload = {
+            "thread-id": thread_id,
+            "content": content
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nComment added to thread {thread_id}")
+
+        return data
+
+    def get_comment_threads(
+        self,
+        file_id: str,
+        page_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all comment threads for a file or page.
+
+        Args:
+            file_id: UUID of the file
+            page_id: Optional UUID of specific page (if None, returns all threads)
+
+        Returns:
+            List of comment thread dictionaries
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> threads = api.get_comment_threads(file_id="file-123")
+            >>> for thread in threads:
+            ...     print(f"Thread at ({thread['position']['x']}, {thread['position']['y']})")
+        """
+        url = f"{self.base_url}/rpc/query/comment-threads"
+
+        payload = {
+            "file-id": file_id
+        }
+
+        if page_id:
+            payload["page-id"] = page_id
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nRetrieved {len(data)} comment threads")
+
+        return data
+
+    def get_thread_comments(
+        self,
+        thread_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all comments in a thread.
+
+        Args:
+            thread_id: UUID of the comment thread
+
+        Returns:
+            List of comment dictionaries in chronological order
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> comments = api.get_thread_comments(thread_id="thread-123")
+            >>> for comment in comments:
+            ...     print(f"{comment['owner-name']}: {comment['content']}")
+        """
+        url = f"{self.base_url}/rpc/query/comments"
+
+        payload = {
+            "thread-id": thread_id
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nRetrieved {len(data)} comments from thread")
+
+        return data
+
+    def update_comment_thread_status(
+        self,
+        thread_id: str,
+        is_resolved: bool
+    ) -> Dict[str, Any]:
+        """
+        Update the resolved status of a comment thread.
+
+        Args:
+            thread_id: UUID of the comment thread
+            is_resolved: Whether the thread should be marked as resolved
+
+        Returns:
+            Updated thread information
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> api.update_comment_thread_status("thread-123", is_resolved=True)
+        """
+        url = f"{self.base_url}/rpc/command/update-comment-thread"
+
+        payload = {
+            "id": thread_id,
+            "is-resolved": is_resolved
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            status = "resolved" if is_resolved else "unresolved"
+            print(f"\nThread {thread_id} marked as {status}")
+
+        return data
+
+    def delete_comment_thread(
+        self,
+        thread_id: str
+    ) -> Dict[str, Any]:
+        """
+        Delete a comment thread and all its comments.
+
+        Args:
+            thread_id: UUID of the comment thread
+
+        Returns:
+            Success confirmation
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> api.delete_comment_thread("thread-123")
+        """
+        url = f"{self.base_url}/rpc/command/delete-comment-thread"
+
+        payload = {
+            "id": thread_id
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+
+        try:
+            data = response.json()
+        except Exception:
+            data = {"success": True, "id": thread_id}
+
+        if self.debug:
+            print(f"\nComment thread deleted: {thread_id}")
+
+        return data
+
     def create_file(
         self,
         name: str,

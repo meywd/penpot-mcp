@@ -980,6 +980,98 @@ with api.editing_session("file-id") as (session_id, revn):
     api.update_file("file-id", session_id, revn, [change])
 ```
 
+### Comments & Collaboration Workflow
+
+The Penpot MCP server supports adding comments to designs for collaboration and review.
+
+#### Creating Comment Threads
+
+```python
+# Add a comment to a design
+result = add_design_comment(
+    file_id="file-123",
+    page_id="page-456",
+    x=150,  # X position on the canvas
+    y=200,  # Y position on the canvas
+    comment="This button needs to be larger"
+)
+
+thread_id = result['thread_id']
+```
+
+#### Replying to Comments
+
+```python
+# Add a reply to an existing thread
+reply = reply_to_comment(
+    thread_id=thread_id,
+    reply="Agreed! I'll increase the size by 20%"
+)
+```
+
+#### Retrieving Comments
+
+```python
+# Get all comment threads for a file
+all_comments = get_file_comments(file_id="file-123")
+
+# Get comments for a specific page
+page_comments = get_file_comments(
+    file_id="file-123",
+    page_id="page-456"
+)
+
+print(f"Found {page_comments['count']} comment threads")
+for thread in page_comments['threads']:
+    print(f"Comment at ({thread['position']['x']}, {thread['position']['y']})")
+```
+
+#### Resolving Comments
+
+```python
+# Mark a comment thread as resolved
+result = resolve_comment_thread(thread_id=thread_id)
+```
+
+#### AI-Assisted Design Review Example
+
+```python
+# 1. Get the design file
+file_data = get_file(file_id="design-123")
+
+# 2. Analyze the design and add review comments
+comments = [
+    {
+        'x': 100, 'y': 150,
+        'comment': 'Consider using higher contrast for accessibility'
+    },
+    {
+        'x': 300, 'y': 200,
+        'comment': 'This heading should use the brand font (Roboto Bold)'
+    },
+    {
+        'x': 450, 'y': 300,
+        'comment': 'Button padding seems inconsistent with design system'
+    }
+]
+
+# 3. Add all comments to the design
+for c in comments:
+    add_design_comment(
+        file_id="design-123",
+        page_id="page-1",
+        x=c['x'],
+        y=c['y'],
+        comment=c['comment']
+    )
+
+# 4. Review and resolve comments as fixes are made
+all_threads = get_file_comments(file_id="design-123")
+for thread in all_threads['threads']:
+    # After verifying the fix, resolve the thread
+    resolve_comment_thread(thread_id=thread['id'])
+```
+
 ### Testing Patterns
 
 - Mock fixtures in `tests/conftest.py`

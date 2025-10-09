@@ -1434,6 +1434,120 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
             except Exception as e:
                 return self._handle_api_error(e)
 
+        # ========== COMMENT & COLLABORATION TOOLS ==========
+
+        @self.mcp.tool()
+        def add_design_comment(
+            file_id: str,
+            page_id: str,
+            x: float,
+            y: float,
+            comment: str,
+            frame_id: Optional[str] = None
+        ) -> dict:
+            """
+            Add a comment to a design at a specific location.
+
+            Args:
+                file_id: ID of the Penpot file
+                page_id: ID of the page
+                x: X position for comment marker
+                y: Y position for comment marker
+                comment: Comment text
+                frame_id: Optional frame ID if commenting within a frame
+
+            Returns:
+                Created comment thread information
+
+            Example:
+                add_design_comment(
+                    file_id="abc-123",
+                    page_id="page-1",
+                    x=150, y=200,
+                    comment="This heading should use our brand font"
+                )
+            """
+            try:
+                thread = self.api.create_comment_thread(
+                    file_id, page_id, x, y, comment, frame_id
+                )
+                return {"success": True, "thread_id": thread.get('id'), "thread": thread}
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def reply_to_comment(
+            thread_id: str,
+            reply: str
+        ) -> dict:
+            """
+            Reply to an existing comment thread.
+
+            Args:
+                thread_id: ID of the comment thread
+                reply: Reply text
+
+            Returns:
+                Created comment information
+
+            Example:
+                reply_to_comment(
+                    thread_id="thread-123",
+                    reply="Done! Updated the font to Roboto Bold"
+                )
+            """
+            try:
+                comment = self.api.add_comment(thread_id, reply)
+                return {"success": True, "comment_id": comment.get('id'), "comment": comment}
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def get_file_comments(
+            file_id: str,
+            page_id: Optional[str] = None
+        ) -> dict:
+            """
+            Get all comment threads for a file or specific page.
+
+            Args:
+                file_id: ID of the Penpot file
+                page_id: Optional ID of specific page
+
+            Returns:
+                List of comment threads with their positions and content
+
+            Example:
+                get_file_comments(file_id="abc-123", page_id="page-1")
+            """
+            try:
+                threads = self.api.get_comment_threads(file_id, page_id)
+                return {"success": True, "count": len(threads), "threads": threads}
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def resolve_comment_thread(
+            thread_id: str
+        ) -> dict:
+            """
+            Mark a comment thread as resolved.
+
+            Args:
+                thread_id: ID of the comment thread
+
+            Returns:
+                Updated thread information
+
+            Example:
+                resolve_comment_thread(thread_id="thread-123")
+            """
+            try:
+                thread = self.api.update_comment_thread_status(thread_id, is_resolved=True)
+                return {"success": True, "thread": thread}
+            except Exception as e:
+                return self._handle_api_error(e)
+
         if include_resource_tools:
             @self.mcp.tool()
             def penpot_schema() -> dict:
