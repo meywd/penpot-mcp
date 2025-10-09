@@ -189,10 +189,10 @@ class TestUpdateFile:
         
         with patch.object(api_client, '_make_authenticated_request', side_effect=http_error):
             changes = [{'type': 'add-obj', 'id': 'obj-1', 'pageId': 'page-1', 'obj': {}}]
-            
+
             with pytest.raises(RevisionConflictError) as exc_info:
-                api_client.update_file('file-123', 'session-123', 10, changes)
-            
+                api_client.update_file('file-123', 'session-123', 10, changes, vern=0)
+
             assert "Revision conflict" in str(exc_info.value)
             assert "Expected 10" in str(exc_info.value)
 

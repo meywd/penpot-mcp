@@ -758,28 +758,55 @@ class PenpotAPI:
     def get_file_revision(self, file_id: str) -> int:
         """
         Get the current revision number for a file.
-        
+
         This extracts the revn field from the file data.
-        
+
         Args:
             file_id: UUID of the file
-            
+
         Returns:
             Current revision number (integer)
-            
+
         Example:
             revn = api.get_file_revision("file-123")
             # Use this revn when calling update_file
         """
         file_data = self.get_file(file_id)
-        
+
         # Revision number is in the root of file data
         revn = file_data.get('revn', 0)
-        
+
         if self.debug:
             print(f"Current revision for file {file_id}: {revn}")
-            
+
         return revn
+
+    def get_file_version(self, file_id: str) -> Tuple[int, int]:
+        """
+        Get the current revision and version numbers for a file.
+
+        This extracts both revn and vern fields from the file data.
+        Some Penpot instances (especially self-hosted) require both.
+
+        Args:
+            file_id: UUID of the file
+
+        Returns:
+            Tuple of (revn, vern) - revision and version numbers
+
+        Example:
+            revn, vern = api.get_file_version("file-123")
+        """
+        file_data = self.get_file(file_id)
+
+        # Get both revision and version numbers
+        revn = file_data.get('revn', 0)
+        vern = file_data.get('vern', 0)
+
+        if self.debug:
+            print(f"Current revision for file {file_id}: revn={revn}, vern={vern}")
+
+        return revn, vern
 
     @contextmanager
     def editing_session(self, file_id: str) -> Generator[Tuple[str, int], None, None]:
@@ -825,13 +852,21 @@ class PenpotAPI:
         Returns:
             List of changes in Transit+JSON format
         """
+        def should_convert_to_keyword(key: str, value: str) -> bool:
+            """Determine if a string value should be converted to a Transit keyword.
+
+            Text content structure types (root, paragraph-set, paragraph) must remain
+            as strings, not keywords, for Penpot API compatibility.
+            """
+            keyword_fields = {'type', 'attr'}
+            text_content_types = {'root', 'paragraph-set', 'paragraph'}
+            return key in keyword_fields and value not in text_content_types
+
         def convert_value(key: str, value: Any) -> Any:
             """Convert a single value based on its key and type."""
             # UUID fields that need ~u prefix
             uuid_fields = {'id', 'pageId', 'frameId', 'parentId', 'obj-id'}
-            # Keyword fields that need ~: prefix for their values
-            keyword_fields = {'type', 'attr'}
-            
+
             if isinstance(value, dict):
                 # Recursively convert nested dictionaries
                 return convert_dict(value)
@@ -843,11 +878,11 @@ class PenpotAPI:
                 if key in uuid_fields:
                     # Add ~u prefix to UUIDs (even short test IDs)
                     return f"~u{value}"
-                elif key in keyword_fields:
-                    # Add ~: prefix to keyword values
+                elif should_convert_to_keyword(key, value):
+                    # Add ~: prefix to keyword values (except text content types)
                     return f"~:{value}"
                 else:
-                    # Return other strings as-is (like names, descriptions)
+                    # Return other strings as-is (like names, descriptions, text content types)
                     return value
             else:
                 # Return non-string types as-is (numbers, booleans, None)
@@ -872,7 +907,8 @@ class PenpotAPI:
         file_id: str,
         session_id: str,
         revn: int,
-        changes: List[dict]
+        changes: List[dict],
+        vern: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Update a Penpot file with design changes.
@@ -885,6 +921,8 @@ class PenpotAPI:
             session_id: UUID for this editing session
             revn: Current revision number (will increment to revn+1)
             changes: List of change operations (add-obj, mod-obj, del-obj, etc.)
+            vern: Optional version number (required by some Penpot instances).
+                  If not provided, will be fetched automatically.
 
         Returns:
             Updated file information with new revision number
@@ -892,7 +930,7 @@ class PenpotAPI:
         Raises:
             RevisionConflictError: If revn does not match server state
             PenpotAPIError: For other API errors
-            
+
         Example:
             >>> api = PenpotAPI()
             >>> with api.editing_session("file-123") as (session_id, revn):
@@ -901,6 +939,12 @@ class PenpotAPI:
         """
         url = f"{self.base_url}/rpc/command/update-file"
 
+        # If vern not provided, fetch it
+        if vern is None:
+            _, vern = self.get_file_version(file_id)
+            if self.debug:
+                print(f"Fetched vern={vern} for file {file_id}")
+
         # Convert changes to Transit+JSON format
         transit_changes = self._convert_changes_to_transit(changes)
 
@@ -908,12 +952,13 @@ class PenpotAPI:
             "id": file_id,
             "session-id": session_id,
             "revn": revn,
+            "vern": vern,
             "changes": transit_changes
         }
 
         if self.debug:
             print(f"\nUpdating file {file_id}")
-            print(f"Session: {session_id}, Revision: {revn}")
+            print(f"Session: {session_id}, Revision: {revn}, Version: {vern}")
             print(f"Changes: {len(changes)} operations")
 
         try:
@@ -923,11 +968,27 @@ class PenpotAPI:
             data = response.json()
 
             if self.debug:
-                print(f"Update successful. New revision: {data.get('revn')}")
+                # Handle both list and dict responses
+                if isinstance(data, list):
+                    print(f"Update successful. Response contains {len(data)} items")
+                    # Return a success dict with the new revision
+                    return {'revn': revn + 1, 'changes': data}
+                else:
+                    print(f"Update successful. New revision: {data.get('revn', revn + 1)}")
+
+            # If data is a list (Transit format), wrap it in a dict
+            if isinstance(data, list):
+                return {'revn': revn + 1, 'changes': data}
 
             return data
 
         except requests.HTTPError as e:
+            # Log error response for debugging
+            if self.debug and hasattr(e, 'response') and e.response is not None:
+                print(f"\n!!! UPDATE FILE ERROR !!!")
+                print(f"Status: {e.response.status_code}")
+                print(f"Response body: {e.response.text[:2000]}")
+
             # Check for revision conflict
             if e.response.status_code == 409:
                 raise RevisionConflictError(
@@ -941,29 +1002,41 @@ class PenpotAPI:
     ) -> dict:
         """
         Create an add-obj change operation.
-        
+
         Args:
             obj_id: UUID for the new object
             page_id: UUID of the page to add object to
             obj: Object definition (type, properties, etc.)
             frame_id: Optional UUID of parent frame
-            
+
         Returns:
             Change operation dictionary
-            
+
         Example:
             >>> api = PenpotAPI()
             >>> obj = {'type': 'rect', 'x': 0, 'y': 0, 'width': 100, 'height': 100}
             >>> change = api.create_add_obj_change("obj-1", "page-1", obj)
         """
+        # Add required fields to the object
+        obj_with_required_fields = obj.copy()
+        obj_with_required_fields['id'] = obj_id
+
+        # If frame_id is not provided, use page_id for both parent and frame
+        # This assumes top-level objects on a page
+        if frame_id is None:
+            obj_with_required_fields['parent-id'] = page_id
+            obj_with_required_fields['frame-id'] = page_id
+        else:
+            obj_with_required_fields['parent-id'] = frame_id
+            obj_with_required_fields['frame-id'] = frame_id
+
         change = {
             'type': 'add-obj',
             'id': obj_id,
-            'pageId': page_id,
-            'obj': obj
+            'page-id': page_id,
+            'frame-id': frame_id if frame_id is not None else page_id,
+            'obj': obj_with_required_fields
         }
-        if frame_id is not None:
-            change['frameId'] = frame_id
         return change
 
     def create_mod_obj_change(self, obj_id: str, operations: List[dict]) -> dict:
@@ -1023,8 +1096,65 @@ class PenpotAPI:
         return {
             'type': 'del-obj',
             'id': obj_id,
-            'pageId': page_id
+            'page-id': page_id
         }
+
+    def _add_geometric_properties(self, obj: dict, x: float, y: float, width: float, height: float) -> dict:
+        """
+        Add required geometric properties to a shape object.
+
+        Args:
+            obj: Shape object dictionary
+            x: X coordinate
+            y: Y coordinate
+            width: Width
+            height: Height
+
+        Returns:
+            Shape object with geometric properties added
+        """
+        # Add selection rectangle (bounding box)
+        obj['selrect'] = {
+            'x': x,
+            'y': y,
+            'width': width,
+            'height': height,
+            'x1': x,
+            'y1': y,
+            'x2': x + width,
+            'y2': y + height
+        }
+
+        # Add corner points (top-left, top-right, bottom-right, bottom-left)
+        obj['points'] = [
+            {'x': x, 'y': y},
+            {'x': x + width, 'y': y},
+            {'x': x + width, 'y': y + height},
+            {'x': x, 'y': y + height}
+        ]
+
+        # Add identity transformation matrix [a, b, c, d, e, f]
+        # This represents no transformation
+        obj['transform'] = {
+            'a': 1.0,
+            'b': 0.0,
+            'c': 0.0,
+            'd': 1.0,
+            'e': 0.0,
+            'f': 0.0
+        }
+
+        # Add inverse transformation (also identity)
+        obj['transform-inverse'] = {
+            'a': 1.0,
+            'b': 0.0,
+            'c': 0.0,
+            'd': 1.0,
+            'e': 0.0,
+            'f': 0.0
+        }
+
+        return obj
 
     def create_rectangle(
         self,
@@ -1075,8 +1205,8 @@ class PenpotAPI:
             'width': width,
             'height': height,
             'fills': [{
-                'fillColor': fill_color,
-                'fillOpacity': fill_opacity
+                'fill-color': fill_color,
+                'fill-opacity': fill_opacity
             }]
         }
 
@@ -1086,12 +1216,15 @@ class PenpotAPI:
 
         if stroke_color and stroke_width:
             rect['strokes'] = [{
-                'strokeColor': stroke_color,
-                'strokeWidth': stroke_width
+                'stroke-color': stroke_color,
+                'stroke-width': stroke_width
             }]
 
         # Merge any additional kwargs
         rect.update(kwargs)
+
+        # Add required geometric properties
+        rect = self._add_geometric_properties(rect, x, y, width, height)
 
         return rect
 
@@ -1139,18 +1272,25 @@ class PenpotAPI:
             'width': radius * 2,
             'height': radius * 2,
             'fills': [{
-                'fillColor': fill_color,
-                'fillOpacity': fill_opacity
+                'fill-color': fill_color,
+                'fill-opacity': fill_opacity
             }]
         }
 
         if stroke_color and stroke_width:
             circle['strokes'] = [{
-                'strokeColor': stroke_color,
-                'strokeWidth': stroke_width
+                'stroke-color': stroke_color,
+                'stroke-width': stroke_width
             }]
 
         circle.update(kwargs)
+
+        # Add required geometric properties
+        x = cx - radius
+        y = cy - radius
+        width = radius * 2
+        height = radius * 2
+        circle = self._add_geometric_properties(circle, x, y, width, height)
 
         return circle
 
@@ -1191,23 +1331,48 @@ class PenpotAPI:
             >>> text_id = api.generate_session_id()
             >>> change = api.create_add_obj_change(text_id, "page-id", text)
         """
+        # Create proper text content structure
+        text_content = {
+            'type': 'root',
+            'children': [{
+                'type': 'paragraph-set',
+                'children': [{
+                    'type': 'paragraph',
+                    'children': [{
+                        'text': content,
+                        'font-family': font_family,
+                        'font-size': str(font_size),
+                        'font-weight': font_weight
+                    }]
+                }]
+            }]
+        }
+
+        # NOTE: Property names use kebab-case (fill-color, font-size) as required by Penpot API
+        # This is intentional and differs from Python's snake_case or JavaScript's camelCase
         text = {
             'type': 'text',
             'name': name,
             'x': x,
             'y': y,
-            'content': content,
+            'content': text_content,
             'fills': [{
-                'fillColor': fill_color,
-                'fillOpacity': 1.0
-            }],
-            'fontSize': font_size,
-            'fontFamily': font_family,
-            'fontWeight': font_weight,
-            'textAlign': text_align
+                'fill-color': fill_color,
+                'fill-opacity': 1.0
+            }]
         }
 
         text.update(kwargs)
+
+        # Estimate text dimensions if not provided
+        # Simple heuristic: width = char_count * font_size * 0.6, height = font_size * 1.5
+        if 'width' not in text:
+            text['width'] = max(len(content) * font_size * 0.6, 10)
+        if 'height' not in text:
+            text['height'] = font_size * 1.5
+
+        # Add required geometric properties
+        text = self._add_geometric_properties(text, text['x'], text['y'], text['width'], text['height'])
 
         return text
 
@@ -1250,16 +1415,20 @@ class PenpotAPI:
             'x': x,
             'y': y,
             'width': width,
-            'height': height
+            'height': height,
+            'shapes': []  # Frames need a shapes list (initially empty)
         }
 
         if background_color:
             frame['fills'] = [{
-                'fillColor': background_color,
-                'fillOpacity': 1.0
+                'fill-color': background_color,
+                'fill-opacity': 1.0
             }]
 
         frame.update(kwargs)
+
+        # Add required geometric properties
+        frame = self._add_geometric_properties(frame, x, y, width, height)
 
         return frame
 
@@ -1366,15 +1535,15 @@ class PenpotAPI:
         # Add fills if specified
         if fill_color:
             path['fills'] = [{
-                'fillColor': fill_color,
-                'fillOpacity': 1.0
+                'fill-color': fill_color,
+                'fill-opacity': 1.0
             }]
 
         # Add strokes if specified
         if stroke_color and stroke_width:
             path['strokes'] = [{
-                'strokeColor': stroke_color,
-                'strokeWidth': stroke_width
+                'stroke-color': stroke_color,
+                'stroke-width': stroke_width
             }]
 
         path.update(kwargs)
