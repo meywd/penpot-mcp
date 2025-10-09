@@ -758,28 +758,55 @@ class PenpotAPI:
     def get_file_revision(self, file_id: str) -> int:
         """
         Get the current revision number for a file.
-        
+
         This extracts the revn field from the file data.
-        
+
         Args:
             file_id: UUID of the file
-            
+
         Returns:
             Current revision number (integer)
-            
+
         Example:
             revn = api.get_file_revision("file-123")
             # Use this revn when calling update_file
         """
         file_data = self.get_file(file_id)
-        
+
         # Revision number is in the root of file data
         revn = file_data.get('revn', 0)
-        
+
         if self.debug:
             print(f"Current revision for file {file_id}: {revn}")
-            
+
         return revn
+
+    def get_file_version(self, file_id: str) -> Tuple[int, int]:
+        """
+        Get the current revision and version numbers for a file.
+
+        This extracts both revn and vern fields from the file data.
+        Some Penpot instances (especially self-hosted) require both.
+
+        Args:
+            file_id: UUID of the file
+
+        Returns:
+            Tuple of (revn, vern) - revision and version numbers
+
+        Example:
+            revn, vern = api.get_file_version("file-123")
+        """
+        file_data = self.get_file(file_id)
+
+        # Get both revision and version numbers
+        revn = file_data.get('revn', 0)
+        vern = file_data.get('vern', 0)
+
+        if self.debug:
+            print(f"Current revision for file {file_id}: revn={revn}, vern={vern}")
+
+        return revn, vern
 
     @contextmanager
     def editing_session(self, file_id: str) -> Generator[Tuple[str, int], None, None]:
@@ -872,7 +899,8 @@ class PenpotAPI:
         file_id: str,
         session_id: str,
         revn: int,
-        changes: List[dict]
+        changes: List[dict],
+        vern: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Update a Penpot file with design changes.
@@ -885,6 +913,8 @@ class PenpotAPI:
             session_id: UUID for this editing session
             revn: Current revision number (will increment to revn+1)
             changes: List of change operations (add-obj, mod-obj, del-obj, etc.)
+            vern: Optional version number (required by some Penpot instances).
+                  If not provided, will be fetched automatically.
 
         Returns:
             Updated file information with new revision number
@@ -892,7 +922,7 @@ class PenpotAPI:
         Raises:
             RevisionConflictError: If revn does not match server state
             PenpotAPIError: For other API errors
-            
+
         Example:
             >>> api = PenpotAPI()
             >>> with api.editing_session("file-123") as (session_id, revn):
@@ -901,6 +931,12 @@ class PenpotAPI:
         """
         url = f"{self.base_url}/rpc/command/update-file"
 
+        # If vern not provided, fetch it
+        if vern is None:
+            _, vern = self.get_file_version(file_id)
+            if self.debug:
+                print(f"Fetched vern={vern} for file {file_id}")
+
         # Convert changes to Transit+JSON format
         transit_changes = self._convert_changes_to_transit(changes)
 
@@ -908,12 +944,13 @@ class PenpotAPI:
             "id": file_id,
             "session-id": session_id,
             "revn": revn,
+            "vern": vern,
             "changes": transit_changes
         }
 
         if self.debug:
             print(f"\nUpdating file {file_id}")
-            print(f"Session: {session_id}, Revision: {revn}")
+            print(f"Session: {session_id}, Revision: {revn}, Version: {vern}")
             print(f"Changes: {len(changes)} operations")
 
         try:
