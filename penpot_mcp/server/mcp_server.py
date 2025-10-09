@@ -1005,6 +1005,435 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
             except Exception as e:
                 return self._handle_api_error(e)
 
+        # ========== ADVANCED SHAPE TOOLS ==========
+
+        @self.mcp.tool()
+        def create_path(
+            file_id: str,
+            page_id: str,
+            points: List[dict],
+            closed: bool = True,
+            fill_color: Optional[str] = None,
+            stroke_color: Optional[str] = None,
+            stroke_width: float = 1.0,
+            name: str = "Path",
+            frame_id: Optional[str] = None
+        ) -> dict:
+            """
+            Create a custom vector path.
+
+            Args:
+                file_id: ID of the Penpot file
+                page_id: ID of the page to add path to
+                points: List of point dictionaries with x, y coordinates
+                        Example: [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 50, "y": 100}]
+                closed: Whether the path should be closed (default: True)
+                fill_color: Fill color in hex format (optional)
+                stroke_color: Stroke color in hex format (optional)
+                stroke_width: Stroke width in pixels (default: 1.0)
+                name: Path name (default: "Path")
+                frame_id: Optional parent frame ID
+
+            Returns:
+                Updated file information with new path object
+
+            Example:
+                create_path(
+                    file_id="abc-123",
+                    page_id="page-1",
+                    points=[{"x": 50, "y": 0}, {"x": 100, "y": 100}, {"x": 0, "y": 100}],
+                    fill_color="#ff0000"
+                )
+            """
+            try:
+                obj_id = self.api.generate_session_id()
+
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    path_obj = self.api.create_path(
+                        points=points,
+                        closed=closed,
+                        fill_color=fill_color,
+                        stroke_color=stroke_color,
+                        stroke_width=stroke_width,
+                        name=name
+                    )
+
+                    change = self.api.create_add_obj_change(
+                        obj_id, page_id, path_obj, frame_id=frame_id
+                    )
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": obj_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def create_group(
+            file_id: str,
+            page_id: str,
+            name: str = "Group",
+            frame_id: Optional[str] = None
+        ) -> dict:
+            """
+            Create a group for organizing multiple objects.
+
+            Args:
+                file_id: ID of the Penpot file
+                page_id: ID of the page to add group to
+                name: Group name (default: "Group")
+                frame_id: Optional parent frame ID
+
+            Returns:
+                Updated file information with new group ID
+
+            Example:
+                create_group(
+                    file_id="abc-123",
+                    page_id="page-1",
+                    name="Button Components"
+                )
+            """
+            try:
+                obj_id = self.api.generate_session_id()
+
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    group_obj = self.api.create_group(name=name)
+
+                    change = self.api.create_add_obj_change(
+                        obj_id, page_id, group_obj, frame_id=frame_id
+                    )
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "groupId": obj_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def add_object_to_group(
+            file_id: str,
+            object_id: str,
+            group_id: str
+        ) -> dict:
+            """
+            Add an existing object to a group.
+
+            Args:
+                file_id: ID of the Penpot file
+                object_id: ID of the object to add to group
+                group_id: ID of the group
+
+            Returns:
+                Updated file information
+
+            Example:
+                add_object_to_group(
+                    file_id="abc-123",
+                    object_id="rect-1",
+                    group_id="group-1"
+                )
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    parent_op = self.api.create_parent_operation(group_id)
+                    change = self.api.create_mod_obj_change(object_id, [parent_op])
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": object_id,
+                        "groupId": group_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def create_boolean_shape(
+            file_id: str,
+            page_id: str,
+            operation: str,
+            shape_ids: List[str],
+            name: str = "Boolean",
+            frame_id: Optional[str] = None
+        ) -> dict:
+            """
+            Create a boolean shape from multiple shapes.
+
+            Args:
+                file_id: ID of the Penpot file
+                page_id: ID of the page
+                operation: Boolean operation ('union', 'difference', 'intersection', 'exclusion')
+                shape_ids: List of shape IDs to combine
+                name: Boolean shape name (default: "Boolean")
+                frame_id: Optional parent frame ID
+
+            Returns:
+                Updated file information with new boolean shape
+
+            Example:
+                create_boolean_shape(
+                    file_id="abc-123",
+                    page_id="page-1",
+                    operation="union",
+                    shape_ids=["circle-1", "circle-2"]
+                )
+            """
+            try:
+                obj_id = self.api.generate_session_id()
+
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    bool_obj = self.api.create_boolean_shape(
+                        operation=operation,
+                        shapes=shape_ids,
+                        name=name
+                    )
+
+                    change = self.api.create_add_obj_change(
+                        obj_id, page_id, bool_obj, frame_id=frame_id
+                    )
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": obj_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        # ========== ADVANCED STYLING TOOLS ==========
+
+        @self.mcp.tool()
+        def apply_gradient(
+            file_id: str,
+            object_id: str,
+            gradient_type: str,
+            start_color: str,
+            end_color: str,
+            angle: float = 0.0
+        ) -> dict:
+            """
+            Apply a gradient fill to an object.
+
+            Args:
+                file_id: ID of the Penpot file
+                object_id: ID of the object to apply gradient to
+                gradient_type: Type of gradient ('linear' or 'radial')
+                start_color: Start color in hex format
+                end_color: End color in hex format
+                angle: Gradient angle in degrees (0-360, for linear gradients)
+
+            Returns:
+                Updated file information
+
+            Example:
+                apply_gradient(
+                    file_id="abc-123",
+                    object_id="rect-1",
+                    gradient_type="linear",
+                    start_color="#ff0000",
+                    end_color="#0000ff",
+                    angle=45
+                )
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    # Convert angle to start/end coordinates
+                    import math
+                    rad = math.radians(angle)
+                    # For linear gradients, angle determines direction
+                    # 0° = left to right, 90° = top to bottom
+                    start_x = 0.5 - 0.5 * math.cos(rad)
+                    start_y = 0.5 - 0.5 * math.sin(rad)
+                    end_x = 0.5 + 0.5 * math.cos(rad)
+                    end_y = 0.5 + 0.5 * math.sin(rad)
+
+                    gradient = self.api.create_gradient_fill(
+                        gradient_type=gradient_type,
+                        start_color=start_color,
+                        end_color=end_color,
+                        start_x=start_x,
+                        start_y=start_y,
+                        end_x=end_x,
+                        end_y=end_y
+                    )
+
+                    fill_op = self.api.create_fill_operation([gradient])
+                    change = self.api.create_mod_obj_change(object_id, [fill_op])
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": object_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def add_stroke(
+            file_id: str,
+            object_id: str,
+            color: str,
+            width: float = 1.0,
+            style: str = "solid"
+        ) -> dict:
+            """
+            Add a stroke (border) to an object.
+
+            Args:
+                file_id: ID of the Penpot file
+                object_id: ID of the object
+                color: Stroke color in hex format
+                width: Stroke width in pixels (default: 1.0)
+                style: Stroke style ('solid', 'dashed', 'dotted', 'mixed')
+
+            Returns:
+                Updated file information
+
+            Example:
+                add_stroke(
+                    file_id="abc-123",
+                    object_id="rect-1",
+                    color="#000000",
+                    width=2.0,
+                    style="solid"
+                )
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    stroke = self.api.create_stroke(
+                        color=color,
+                        width=width,
+                        style=style
+                    )
+
+                    stroke_op = self.api.create_stroke_operation([stroke])
+                    change = self.api.create_mod_obj_change(object_id, [stroke_op])
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": object_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def add_shadow(
+            file_id: str,
+            object_id: str,
+            color: str,
+            offset_x: float,
+            offset_y: float,
+            blur: float,
+            spread: float = 0.0
+        ) -> dict:
+            """
+            Add a drop shadow to an object.
+
+            Args:
+                file_id: ID of the Penpot file
+                object_id: ID of the object
+                color: Shadow color in hex format with alpha (e.g., "#00000080")
+                offset_x: Horizontal offset in pixels
+                offset_y: Vertical offset in pixels
+                blur: Blur radius in pixels
+                spread: Spread radius in pixels (default: 0.0)
+
+            Returns:
+                Updated file information
+
+            Example:
+                add_shadow(
+                    file_id="abc-123",
+                    object_id="rect-1",
+                    color="#00000080",
+                    offset_x=2,
+                    offset_y=2,
+                    blur=4
+                )
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    shadow = self.api.create_shadow(
+                        color=color,
+                        offset_x=offset_x,
+                        offset_y=offset_y,
+                        blur=blur,
+                        spread=spread
+                    )
+
+                    shadow_op = self.api.create_shadow_operation([shadow])
+                    change = self.api.create_mod_obj_change(object_id, [shadow_op])
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": object_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def apply_blur(
+            file_id: str,
+            object_id: str,
+            blur_amount: float,
+            blur_type: str = "layer-blur"
+        ) -> dict:
+            """
+            Apply a blur effect to an object.
+
+            Args:
+                file_id: ID of the Penpot file
+                object_id: ID of the object
+                blur_amount: Blur amount in pixels
+                blur_type: Type of blur ('layer-blur' or 'background-blur')
+
+            Returns:
+                Updated file information
+
+            Example:
+                apply_blur(file_id="abc-123", object_id="rect-1", blur_amount=10)
+            """
+            try:
+                with self.api.editing_session(file_id) as (session_id, revn):
+                    blur = self.api.create_blur(
+                        blur_type=blur_type,
+                        value=blur_amount
+                    )
+
+                    blur_op = self.api.create_blur_operation(blur)
+                    change = self.api.create_mod_obj_change(object_id, [blur_op])
+
+                    result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    return {
+                        "success": True,
+                        "objectId": object_id,
+                        "revn": result.get('revn')
+                    }
+            except Exception as e:
+                return self._handle_api_error(e)
+
         if include_resource_tools:
             @self.mcp.tool()
             def penpot_schema() -> dict:
