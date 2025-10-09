@@ -48,10 +48,11 @@ def mock_server():
     return server
 
 
-# ========== MCP TOOL TESTS ==========
+# ========== API MOCK TESTS ==========
+# These tests verify the API mock behavior works correctly
 
-def test_link_library_tool(mock_server):
-    """Test link_library MCP tool."""
+def test_link_file_to_library_api_mock(mock_server):
+    """Test link_file_to_library API mock returns expected data."""
     result = mock_server.api.link_file_to_library(
         file_id='file-123',
         library_id='lib-456'
@@ -61,8 +62,8 @@ def test_link_library_tool(mock_server):
     assert 'lib-456' in result['linkedLibraries']
 
 
-def test_list_library_components_tool(mock_server):
-    """Test list_library_components MCP tool."""
+def test_get_library_components_api_mock(mock_server):
+    """Test get_library_components API mock returns expected data."""
     result = mock_server.api.get_library_components(
         library_id='lib-456'
     )
@@ -72,8 +73,8 @@ def test_list_library_components_tool(mock_server):
     assert result[2]['name'] == 'Modal'
 
 
-def test_import_component_tool(mock_server):
-    """Test import_component MCP tool."""
+def test_instantiate_component_api_mock(mock_server):
+    """Test instantiate_component API mock returns expected data."""
     result = mock_server.api.instantiate_component(
         file_id='file-123',
         page_id='page-456',
@@ -87,8 +88,8 @@ def test_import_component_tool(mock_server):
     assert result['revn'] == 6
 
 
-def test_import_component_tool_with_frame(mock_server):
-    """Test import_component MCP tool with frame_id."""
+def test_instantiate_component_with_frame_api_mock(mock_server):
+    """Test instantiate_component API mock with frame_id parameter."""
     result = mock_server.api.instantiate_component(
         file_id='file-123',
         page_id='page-456',
@@ -112,8 +113,8 @@ def test_import_component_tool_with_frame(mock_server):
     )
 
 
-def test_sync_library_tool(mock_server):
-    """Test sync_library MCP tool."""
+def test_sync_file_library_api_mock(mock_server):
+    """Test sync_file_library API mock returns expected data."""
     result = mock_server.api.sync_file_library(
         file_id='file-123',
         library_id='lib-456'
@@ -124,8 +125,8 @@ def test_sync_library_tool(mock_server):
     assert result['library-id'] == 'lib-456'
 
 
-def test_publish_as_library_tool(mock_server):
-    """Test publish_as_library MCP tool."""
+def test_publish_library_api_mock(mock_server):
+    """Test publish_library API mock returns expected data."""
     result = mock_server.api.publish_library(
         file_id='file-123',
         publish=True
@@ -135,14 +136,14 @@ def test_publish_as_library_tool(mock_server):
     assert result['is-shared'] is True
 
 
-def test_unpublish_library_tool(mock_server):
-    """Test unpublish_library MCP tool."""
+def test_unpublish_library_api_mock(mock_server):
+    """Test publish_library API mock with publish=False."""
     # Mock the unpublish response
     mock_server.api.publish_library = MagicMock(return_value={
         'id': 'file-123',
         'is-shared': False
     })
-    
+
     result = mock_server.api.publish_library(
         file_id='file-123',
         publish=False
@@ -152,8 +153,8 @@ def test_unpublish_library_tool(mock_server):
     assert result['is-shared'] is False
 
 
-def test_get_file_libraries_tool(mock_server):
-    """Test get_file_libraries MCP tool."""
+def test_get_file_libraries_api_mock(mock_server):
+    """Test get_file_libraries API mock returns expected data."""
     result = mock_server.api.get_file_libraries(
         file_id='file-123'
     )

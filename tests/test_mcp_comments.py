@@ -41,10 +41,11 @@ def mock_server():
     return server
 
 
-# ========== MCP TOOL TESTS ==========
+# ========== API MOCK TESTS ==========
+# These tests verify the API mock behavior works correctly
 
-def test_add_design_comment_tool(mock_server):
-    """Test add_design_comment MCP tool."""
+def test_create_comment_thread_api_mock(mock_server):
+    """Test create_comment_thread API mock returns expected data."""
     result = mock_server.api.create_comment_thread(
         file_id='file-123',
         page_id='page-456',
@@ -58,8 +59,8 @@ def test_add_design_comment_tool(mock_server):
     assert result['content'] == 'Test comment'
 
 
-def test_reply_to_comment_tool(mock_server):
-    """Test reply_to_comment MCP tool."""
+def test_add_comment_api_mock(mock_server):
+    """Test add_comment API mock returns expected data."""
     result = mock_server.api.add_comment(
         thread_id='thread-456',
         content='I agree with this feedback'
@@ -70,8 +71,8 @@ def test_reply_to_comment_tool(mock_server):
     assert result['content'] == 'Test reply'
 
 
-def test_get_file_comments_tool(mock_server):
-    """Test get_file_comments MCP tool."""
+def test_get_comment_threads_api_mock(mock_server):
+    """Test get_comment_threads API mock returns expected data."""
     result = mock_server.api.get_comment_threads(
         file_id='file-123',
         page_id='page-456'
@@ -82,8 +83,8 @@ def test_get_file_comments_tool(mock_server):
     assert result[1]['id'] == 'thread-2'
 
 
-def test_resolve_comment_thread_tool(mock_server):
-    """Test resolve_comment_thread MCP tool."""
+def test_update_comment_thread_status_api_mock(mock_server):
+    """Test update_comment_thread_status API mock returns expected data."""
     result = mock_server.api.update_comment_thread_status(
         thread_id='thread-123',
         is_resolved=True
@@ -132,34 +133,3 @@ class TestCommentWorkflow:
 
         # Verify different positions
         assert threads[0]['position'] != threads[1]['position']
-
-
-class TestCommentErrorHandling:
-    """Test error handling for comment tools."""
-
-    def test_create_comment_with_error(self, mock_server):
-        """Test that create_comment_thread handles errors."""
-        mock_server.api.create_comment_thread = MagicMock(
-            side_effect=Exception("API Error")
-        )
-
-        # Tool should handle the error gracefully
-        # (actual invocation would require calling through FastMCP)
-
-    def test_reply_with_invalid_thread(self, mock_server):
-        """Test that add_comment handles invalid thread ID."""
-        mock_server.api.add_comment = MagicMock(
-            side_effect=Exception("Thread not found")
-        )
-
-        # Tool should handle the error
-        # (actual invocation would require calling through FastMCP)
-
-    def test_resolve_nonexistent_thread(self, mock_server):
-        """Test that resolve handles nonexistent thread."""
-        mock_server.api.update_comment_thread_status = MagicMock(
-            side_effect=Exception("Thread not found")
-        )
-
-        # Tool should handle the error
-        # (actual invocation would require calling through FastMCP)
