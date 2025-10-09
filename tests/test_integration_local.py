@@ -189,7 +189,7 @@ class TestShapeCreation:
 
         with api_client.editing_session(test_file) as (session_id, revn):
             circle = api_client.create_circle(
-                cx=300, cy=300, r=50,
+                cx=300, cy=300, radius=50,
                 name="Test Circle",
                 fill_color="#00FF00"
             )
