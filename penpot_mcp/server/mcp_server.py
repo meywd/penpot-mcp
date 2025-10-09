@@ -562,16 +562,58 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 change_object_color(file_id="file-123", object_id="obj-456", fill_color="#FF0000")
             """
             try:
+                # First, get the file to check object type
+                file_data = self.api.get_file(file_id)
+                pages_index = file_data.get('data', {}).get('pagesIndex', {})
+
+                # Find the object in the pages
+                obj = None
+                for page_id, page_data in pages_index.items():
+                    objects = page_data.get('objects', {})
+                    if object_id in objects:
+                        obj = objects[object_id]
+                        break
+
+                if not obj:
+                    return {
+                        "success": False,
+                        "error": f"Object {object_id} not found in file"
+                    }
+
+                obj_type = obj.get('type')
+
                 with self.api.editing_session(file_id) as (session_id, revn):
-                    # Set new fill
+                    # Use kebab-case as required by Penpot API
                     fills = [{
-                        'fillColor': fill_color,
-                        'fillOpacity': fill_opacity
+                        'fill-color': fill_color,
+                        'fill-opacity': fill_opacity
                     }]
 
-                    ops = [
-                        self.api.create_set_operation('fills', fills)
-                    ]
+                    ops = []
+
+                    # For text objects, update the content structure
+                    if obj_type == 'text':
+                        # Get existing content structure
+                        content = obj.get('content', {})
+
+                        # Update fills in content structure at all levels
+                        if 'children' in content:
+                            for paragraph_set in content['children']:
+                                if 'children' in paragraph_set:
+                                    for paragraph in paragraph_set['children']:
+                                        # Set fills at paragraph level
+                                        paragraph['fills'] = fills
+                                        if 'children' in paragraph:
+                                            for text_node in paragraph['children']:
+                                                # Set fills at text node level
+                                                text_node['fills'] = fills
+
+                        # Update both content and fills
+                        ops.append(self.api.create_set_operation('content', content))
+                        ops.append(self.api.create_set_operation('fills', fills))
+                    else:
+                        # For non-text objects, just update fills
+                        ops.append(self.api.create_set_operation('fills', fills))
 
                     change = self.api.create_mod_obj_change(object_id, ops)
                     result = self.api.update_file(file_id, session_id, revn, [change])

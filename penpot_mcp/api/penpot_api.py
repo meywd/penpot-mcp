@@ -1332,17 +1332,26 @@ class PenpotAPI:
             >>> change = api.create_add_obj_change(text_id, "page-id", text)
         """
         # Create proper text content structure
+        # IMPORTANT: Text color must be set in the content structure, not just at object level
+        # Penpot UI reads text color from content.children[].children[].children[].fills
+        fills_array = [{
+            'fill-color': fill_color,
+            'fill-opacity': 1.0
+        }]
+
         text_content = {
             'type': 'root',
             'children': [{
                 'type': 'paragraph-set',
                 'children': [{
                     'type': 'paragraph',
+                    'fills': fills_array,  # Add fills at paragraph level
                     'children': [{
                         'text': content,
                         'font-family': font_family,
                         'font-size': str(font_size),
-                        'font-weight': font_weight
+                        'font-weight': font_weight,
+                        'fills': fills_array  # Add fills at text level
                     }]
                 }]
             }]
@@ -1356,10 +1365,7 @@ class PenpotAPI:
             'x': x,
             'y': y,
             'content': text_content,
-            'fills': [{
-                'fill-color': fill_color,
-                'fill-opacity': 1.0
-            }]
+            'fills': fills_array  # Also set at object level for completeness
         }
 
         text.update(kwargs)
