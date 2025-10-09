@@ -57,7 +57,7 @@ def test_project(api_client, test_team):
     """Create a test project for integration tests."""
     # Create test project
     project_name = f"MCP Integration Test {int(time.time())}"
-    project = api_client.create_project(test_team, project_name)
+    project = api_client.create_project(project_name, test_team)
     project_id = project['id']
 
     yield project_id
@@ -75,7 +75,7 @@ def test_file(api_client, test_project):
     """Create a test file for integration tests."""
     # Create test file
     file_name = f"Test File {int(time.time())}"
-    file = api_client.create_file(test_project, file_name)
+    file = api_client.create_file(file_name, test_project)
     file_id = file['id']
 
     yield file_id
@@ -116,7 +116,7 @@ class TestProjectFileManagement:
         """Test creating and deleting a project."""
         # Create project
         project_name = f"Temp Test Project {int(time.time())}"
-        project = api_client.create_project(test_team, project_name)
+        project = api_client.create_project(project_name, test_team)
 
         assert 'id' in project
         assert project['name'] == project_name
@@ -132,7 +132,7 @@ class TestProjectFileManagement:
         """Test creating and deleting a file."""
         # Create file
         file_name = f"Temp Test File {int(time.time())}"
-        file = api_client.create_file(test_project, file_name)
+        file = api_client.create_file(file_name, test_project)
 
         assert 'id' in file
         assert file['name'] == file_name
