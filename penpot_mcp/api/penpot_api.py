@@ -2087,6 +2087,282 @@ class PenpotAPI:
 
         return data
 
+    def get_file_libraries(
+        self,
+        file_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all libraries linked to a file.
+
+        Args:
+            file_id: UUID of the file
+
+        Returns:
+            List of linked library dictionaries
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> libraries = api.get_file_libraries(file_id="file-123")
+            >>> for lib in libraries:
+            ...     print(f"{lib['name']}: {len(lib['components'])} components")
+        """
+        url = f"{self.base_url}/rpc/query/file-libraries"
+
+        payload = {
+            "file-id": file_id
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nRetrieved {len(data)} linked libraries")
+
+        return data
+
+    def link_file_to_library(
+        self,
+        file_id: str,
+        library_id: str
+    ) -> Dict[str, Any]:
+        """
+        Link a file to a library to use its components.
+
+        Args:
+            file_id: UUID of the file
+            library_id: UUID of the library file to link
+
+        Returns:
+            Updated file information
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> api.link_file_to_library(
+            ...     file_id="file-123",
+            ...     library_id="library-456"
+            ... )
+        """
+        url = f"{self.base_url}/rpc/command/link-file-to-library"
+
+        payload = {
+            "file-id": file_id,
+            "library-id": library_id
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nLinked file {file_id} to library {library_id}")
+
+        return data
+
+    def unlink_file_from_library(
+        self,
+        file_id: str,
+        library_id: str
+    ) -> Dict[str, Any]:
+        """
+        Unlink a file from a library.
+
+        Args:
+            file_id: UUID of the file
+            library_id: UUID of the library file to unlink
+
+        Returns:
+            Success confirmation
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> api.unlink_file_from_library("file-123", "library-456")
+        """
+        url = f"{self.base_url}/rpc/command/unlink-file-from-library"
+
+        payload = {
+            "file-id": file_id,
+            "library-id": library_id
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+
+        try:
+            data = response.json()
+        except Exception:
+            data = {"success": True}
+
+        if self.debug:
+            print(f"\nUnlinked file {file_id} from library {library_id}")
+
+        return data
+
+    def get_library_components(
+        self,
+        library_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all components available in a library.
+
+        Args:
+            library_id: UUID of the library file
+
+        Returns:
+            List of component dictionaries with metadata
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> components = api.get_library_components(library_id="library-456")
+            >>> for comp in components:
+            ...     print(f"{comp['name']} (ID: {comp['id']})")
+        """
+        url = f"{self.base_url}/rpc/query/library-components"
+
+        payload = {
+            "library-id": library_id
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nRetrieved {len(data)} components from library")
+
+        return data
+
+    def instantiate_component(
+        self,
+        file_id: str,
+        page_id: str,
+        library_id: str,
+        component_id: str,
+        x: float,
+        y: float,
+        frame_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create an instance of a library component in the design.
+
+        Args:
+            file_id: UUID of the target file
+            page_id: UUID of the target page
+            library_id: UUID of the library file
+            component_id: UUID of the component to instantiate
+            x: X position for the instance
+            y: Y position for the instance
+            frame_id: Optional parent frame ID
+
+        Returns:
+            Updated file information with new component instance
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> with api.editing_session("file-123") as (session_id, revn):
+            ...     result = api.instantiate_component(
+            ...         file_id="file-123",
+            ...         page_id="page-1",
+            ...         library_id="library-456",
+            ...         component_id="button-component",
+            ...         x=100, y=100
+            ...     )
+        """
+        # This uses the update_file mechanism with a special
+        # instantiate-component change operation
+        with self.editing_session(file_id) as (session_id, revn):
+            instance_id = str(uuid.uuid4())
+
+            change = {
+                'type': 'add-component-instance',
+                'id': instance_id,
+                'pageId': page_id,
+                'libraryId': library_id,
+                'componentId': component_id,
+                'x': x,
+                'y': y
+            }
+
+            if frame_id:
+                change['frameId'] = frame_id
+
+            result = self.update_file(file_id, session_id, revn, [change])
+
+            if self.debug:
+                print(f"\nInstantiated component {component_id} as {instance_id}")
+
+            return result
+
+    def sync_file_library(
+        self,
+        file_id: str,
+        library_id: str
+    ) -> Dict[str, Any]:
+        """
+        Synchronize component instances with their library source.
+
+        Updates all instances of components from the specified library
+        to match the current library version.
+
+        Args:
+            file_id: UUID of the file
+            library_id: UUID of the library to sync
+
+        Returns:
+            Sync result information
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> result = api.sync_file_library("file-123", "library-456")
+            >>> print(f"Updated {result['updated-count']} instances")
+        """
+        url = f"{self.base_url}/rpc/command/sync-file"
+
+        payload = {
+            "file-id": file_id,
+            "library-id": library_id
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            print(f"\nSynchronized library {library_id} in file {file_id}")
+
+        return data
+
+    def publish_library(
+        self,
+        file_id: str,
+        publish: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Publish or unpublish a file as a shared library.
+
+        Args:
+            file_id: UUID of the file
+            publish: Whether to publish (True) or unpublish (False)
+
+        Returns:
+            Updated file information
+
+        Example:
+            >>> api = PenpotAPI()
+            >>> # Publish file as library
+            >>> api.publish_library(file_id="file-123", publish=True)
+        """
+        url = f"{self.base_url}/rpc/command/set-file-shared"
+
+        payload = {
+            "id": file_id,
+            "is-shared": publish
+        }
+
+        response = self._make_authenticated_request('post', url, json=payload, use_transit=False)
+        data = response.json()
+
+        if self.debug:
+            action = "published" if publish else "unpublished"
+            print(f"\nFile {file_id} {action} as library")
+
+        return data
+
     def create_export(self, file_id: str, page_id: str, object_id: str,
                       export_type: str = "png", scale: int = 1,
                       email: Optional[str] = None, password: Optional[str] = None,

@@ -1548,6 +1548,202 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
             except Exception as e:
                 return self._handle_api_error(e)
 
+        @self.mcp.tool()
+        def link_library(
+            file_id: str,
+            library_id: str
+        ) -> dict:
+            """
+            Link a file to a component library.
+
+            Args:
+                file_id: ID of the file
+                library_id: ID of the library file to link
+
+            Returns:
+                Success confirmation
+
+            Example:
+                link_library(file_id="abc-123", library_id="lib-456")
+            """
+            try:
+                result = self.api.link_file_to_library(file_id, library_id)
+                return {"success": True, "result": result}
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def list_library_components(
+            library_id: str
+        ) -> dict:
+            """
+            List all components available in a library.
+
+            Args:
+                library_id: ID of the library file
+
+            Returns:
+                List of components with their names and IDs
+
+            Example:
+                list_library_components(library_id="lib-456")
+            """
+            try:
+                components = self.api.get_library_components(library_id)
+                return {
+                    "success": True,
+                    "count": len(components),
+                    "components": components
+                }
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def import_component(
+            file_id: str,
+            page_id: str,
+            library_id: str,
+            component_id: str,
+            x: float,
+            y: float,
+            frame_id: Optional[str] = None
+        ) -> dict:
+            """
+            Import a component from a library into the design.
+
+            Args:
+                file_id: ID of the target file
+                page_id: ID of the target page
+                library_id: ID of the library file
+                component_id: ID of the component to import
+                x: X position for the component instance
+                y: Y position for the component instance
+                frame_id: Optional parent frame ID
+
+            Returns:
+                Created component instance information
+
+            Example:
+                import_component(
+                    file_id="abc-123",
+                    page_id="page-1",
+                    library_id="lib-456",
+                    component_id="button-primary",
+                    x=100, y=100
+                )
+            """
+            try:
+                result = self.api.instantiate_component(
+                    file_id, page_id, library_id, component_id, x, y, frame_id
+                )
+                return {"success": True, "file": result}
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def sync_library(
+            file_id: str,
+            library_id: str
+        ) -> dict:
+            """
+            Synchronize component instances with their library.
+
+            Updates all instances of components from the library to match
+            the current library version.
+
+            Args:
+                file_id: ID of the file
+                library_id: ID of the library to sync
+
+            Returns:
+                Sync result with count of updated instances
+
+            Example:
+                sync_library(file_id="abc-123", library_id="lib-456")
+            """
+            try:
+                result = self.api.sync_file_library(file_id, library_id)
+                return {"success": True, "result": result}
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def publish_as_library(
+            file_id: str
+        ) -> dict:
+            """
+            Publish a file as a shared component library.
+
+            Args:
+                file_id: ID of the file to publish
+
+            Returns:
+                Updated file information
+
+            Example:
+                publish_as_library(file_id="abc-123")
+            """
+            try:
+                result = self.api.publish_library(file_id, publish=True)
+                return {"success": True, "file": result}
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def unpublish_library(
+            file_id: str
+        ) -> dict:
+            """
+            Unpublish a file as a library.
+
+            Removes the library status from a file, making its components
+            no longer available for use in other files.
+
+            Args:
+                file_id: ID of the file to unpublish
+
+            Returns:
+                Updated file information
+
+            Example:
+                unpublish_library(file_id="abc-123")
+            """
+            try:
+                result = self.api.publish_library(file_id, publish=False)
+                return {"success": True, "file": result}
+            except Exception as e:
+                return self._handle_api_error(e)
+
+        @self.mcp.tool()
+        def get_file_libraries(
+            file_id: str
+        ) -> dict:
+            """
+            Get all libraries linked to a file.
+
+            Returns a list of all component libraries that are currently
+            linked to the specified file, allowing you to discover which
+            libraries' components are available for use.
+
+            Args:
+                file_id: ID of the file
+
+            Returns:
+                List of linked libraries with their information
+
+            Example:
+                get_file_libraries(file_id="abc-123")
+            """
+            try:
+                libraries = self.api.get_file_libraries(file_id)
+                return {
+                    "success": True,
+                    "count": len(libraries),
+                    "libraries": libraries
+                }
+            except Exception as e:
+                return self._handle_api_error(e)
+
         if include_resource_tools:
             @self.mcp.tool()
             def penpot_schema() -> dict:
