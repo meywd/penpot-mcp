@@ -105,17 +105,24 @@ penpot-validate path/to/penpot_file.json
 - `delete_object`: Delete an object from a page
 - `apply_design_changes`: Apply multiple changes atomically
 
-**Advanced Shape Helpers (Phase 3):**
+**Advanced Shape Tools (Phase 3):**
 - `create_path`: Create custom vector paths with points
+- `create_group`: Create group containers for organizing objects
+- `add_object_to_group`: Add existing objects to a group
 - `create_boolean_shape`: Boolean operations (union, difference, intersection, exclusion)
-- `create_parent_operation`: Set object parent for grouping
-- `create_group`: Create group containers (already implemented in Phase 2)
 
-**Advanced Styling Helpers (Phase 3):**
-- `create_gradient_fill`: Create linear or radial gradient fills
+**Advanced Styling Tools (Phase 3):**
+- `apply_gradient`: Apply linear or radial gradient fills with angle control
+- `add_stroke`: Add strokes/borders with style options (solid, dashed, dotted)
+- `add_shadow`: Add drop shadow effects with spread
+- `apply_blur`: Apply layer or background blur effects
+
+**Advanced Shape/Styling Helpers (API level):**
+- `create_gradient_fill`: Create linear or radial gradient fill definitions
 - `create_stroke`: Create stroke/border definitions with style, cap, and join options
-- `create_shadow`: Create drop shadow effects
-- `create_blur`: Create layer or background blur effects
+- `create_shadow`: Create drop shadow effect definitions
+- `create_blur`: Create layer or background blur effect definitions
+- `create_parent_operation`: Set object parent for grouping
 - `create_fill_operation`: Create operation to set fill(s) on an object
 - `create_stroke_operation`: Create operation to set stroke(s) on an object
 - `create_shadow_operation`: Create operation to set shadow(s) on an object
@@ -304,7 +311,267 @@ export_object(
 )
 ```
 
-### Advanced Shape Creation Workflow (Phase 3)
+### Phase 3: Advanced Design with MCP Tools
+
+The following examples show how to use the Phase 3 MCP tools for advanced design features. These are high-level tools that handle session management automatically.
+
+#### 1. Creating Custom Paths
+
+```python
+# Create a triangle using the create_path MCP tool
+create_path(
+    file_id="file-123",
+    page_id="page-456",
+    points=[
+        {"x": 50, "y": 0},
+        {"x": 100, "y": 100},
+        {"x": 0, "y": 100}
+    ],
+    closed=True,
+    fill_color="#ff0000",
+    stroke_color="#000000",
+    stroke_width=2,
+    name="Triangle"
+)
+
+# Create a star shape
+create_path(
+    file_id="file-123",
+    page_id="page-456",
+    points=[
+        {"x": 50, "y": 0},
+        {"x": 61, "y": 35},
+        {"x": 98, "y": 35},
+        {"x": 68, "y": 57},
+        {"x": 79, "y": 91},
+        {"x": 50, "y": 70},
+        {"x": 21, "y": 91},
+        {"x": 32, "y": 57},
+        {"x": 2, "y": 35},
+        {"x": 39, "y": 35}
+    ],
+    closed=True,
+    fill_color="#FFD700",
+    name="Star"
+)
+```
+
+#### 2. Grouping Objects
+
+```python
+# Create a group
+group_result = create_group(
+    file_id="file-123",
+    page_id="page-456",
+    name="Button Components"
+)
+group_id = group_result['groupId']
+
+# Add objects to the group
+add_object_to_group(
+    file_id="file-123",
+    object_id="rect-id",
+    group_id=group_id
+)
+
+add_object_to_group(
+    file_id="file-123",
+    object_id="text-id",
+    group_id=group_id
+)
+```
+
+#### 3. Boolean Operations
+
+```python
+# Create two overlapping circles first
+circle1 = add_circle(
+    file_id="file-123",
+    page_id="page-456",
+    cx=50, cy=50, radius=40,
+    fill_color="#ff0000"
+)
+
+circle2 = add_circle(
+    file_id="file-123",
+    page_id="page-456",
+    cx=80, cy=50, radius=40,
+    fill_color="#0000ff"
+)
+
+# Create union of the circles
+create_boolean_shape(
+    file_id="file-123",
+    page_id="page-456",
+    operation="union",
+    shape_ids=[circle1['objectId'], circle2['objectId']],
+    name="Merged Circles"
+)
+
+# Or create a difference (subtract second from first)
+create_boolean_shape(
+    file_id="file-123",
+    page_id="page-456",
+    operation="difference",
+    shape_ids=[circle1['objectId'], circle2['objectId']],
+    name="Donut Shape"
+)
+```
+
+#### 4. Applying Gradients
+
+```python
+# Apply a linear gradient at 45 degrees
+apply_gradient(
+    file_id="file-123",
+    object_id="rect-id",
+    gradient_type="linear",
+    start_color="#ff0000",
+    end_color="#0000ff",
+    angle=45
+)
+
+# Apply a radial gradient (angle is ignored for radial)
+apply_gradient(
+    file_id="file-123",
+    object_id="circle-id",
+    gradient_type="radial",
+    start_color="#ffffff",
+    end_color="#000000",
+    angle=0
+)
+```
+
+#### 5. Adding Strokes and Shadows
+
+```python
+# Add a dashed stroke
+add_stroke(
+    file_id="file-123",
+    object_id="rect-id",
+    color="#000000",
+    width=3.0,
+    style="dashed"
+)
+
+# Add a drop shadow
+add_shadow(
+    file_id="file-123",
+    object_id="rect-id",
+    color="#00000080",  # 50% transparent black
+    offset_x=4,
+    offset_y=4,
+    blur=8,
+    spread=2
+)
+```
+
+#### 6. Applying Blur Effects
+
+```python
+# Apply layer blur
+apply_blur(
+    file_id="file-123",
+    object_id="rect-id",
+    blur_amount=10,
+    blur_type="layer-blur"
+)
+
+# Apply background blur
+apply_blur(
+    file_id="file-123",
+    object_id="rect-id",
+    blur_amount=15,
+    blur_type="background-blur"
+)
+```
+
+#### 7. Creating a Complete Design
+
+```python
+# Create a modern card design with advanced features
+# 1. Create card background with gradient
+card = add_rectangle(
+    file_id="file-123",
+    page_id="page-456",
+    x=50, y=50,
+    width=300, height=200,
+    name="Card Background"
+)
+
+apply_gradient(
+    file_id="file-123",
+    object_id=card['objectId'],
+    gradient_type="linear",
+    start_color="#667eea",
+    end_color="#764ba2",
+    angle=135
+)
+
+# 2. Add shadow to card
+add_shadow(
+    file_id="file-123",
+    object_id=card['objectId'],
+    color="#00000040",
+    offset_x=0,
+    offset_y=8,
+    blur=16,
+    spread=0
+)
+
+# 3. Create icon using custom path
+icon = create_path(
+    file_id="file-123",
+    page_id="page-456",
+    points=[
+        {"x": 100, "y": 80},
+        {"x": 120, "y": 100},
+        {"x": 100, "y": 120},
+        {"x": 80, "y": 100}
+    ],
+    closed=True,
+    fill_color="#ffffff",
+    name="Icon"
+)
+
+# 4. Add text with shadow
+text = add_text(
+    file_id="file-123",
+    page_id="page-456",
+    x=150, y=100,
+    content="Premium",
+    font_size=24,
+    fill_color="#ffffff",
+    name="Title"
+)
+
+add_shadow(
+    file_id="file-123",
+    object_id=text['objectId'],
+    color="#00000060",
+    offset_x=0,
+    offset_y=2,
+    blur=4
+)
+
+# 5. Group all elements
+group = create_group(
+    file_id="file-123",
+    page_id="page-456",
+    name="Card Component"
+)
+
+for obj_id in [card['objectId'], icon['objectId'], text['objectId']]:
+    add_object_to_group(
+        file_id="file-123",
+        object_id=obj_id,
+        group_id=group['groupId']
+    )
+```
+
+### Advanced Shape Creation Workflow (Phase 3 - API Level)
+
+The following examples show the lower-level API methods for advanced control. These require manual session management.
 
 #### 1. Creating Custom Vector Paths
 
