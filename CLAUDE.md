@@ -128,6 +128,22 @@ penpot-validate path/to/penpot_file.json
 - `create_shadow_operation`: Create operation to set shadow(s) on an object
 - `create_blur_operation`: Create operation to set blur effect on an object
 
+**Library & Component System (Phase 5):**
+- `link_library`: Link a file to a component library
+- `list_library_components`: List all components in a library
+- `import_component`: Import a component from a library into the design
+- `sync_library`: Synchronize component instances with their library
+- `publish_as_library`: Publish a file as a shared component library
+
+**Library & Component System Helpers (API level):**
+- `get_file_libraries`: Get all libraries linked to a file
+- `link_file_to_library`: Link a file to use a library's components
+- `unlink_file_from_library`: Remove library link from a file
+- `get_library_components`: Get all components in a library
+- `instantiate_component`: Create an instance of a library component
+- `sync_file_library`: Update component instances to match library
+- `publish_library`: Publish/unpublish a file as a library
+
 ### Environment Configuration
 
 Create a `.env` file with:
@@ -1070,6 +1086,185 @@ all_threads = get_file_comments(file_id="design-123")
 for thread in all_threads['threads']:
     # After verifying the fix, resolve the thread
     resolve_comment_thread(thread_id=thread['id'])
+```
+
+### Library & Component System Workflow
+
+The Penpot MCP server supports working with component libraries and design systems, enabling reusable components across projects.
+
+#### Publishing a File as a Library
+
+```python
+# 1. Create a design file with components you want to share
+file = create_file(name="Design System", project_id="project-123")
+file_id = file['id']
+page_id = file['data']['pages'][0]['id']
+
+# 2. Create reusable components (buttons, cards, etc.)
+button = add_rectangle(
+    file_id=file_id,
+    page_id=page_id,
+    x=50, y=50,
+    width=120, height=40,
+    name="Primary Button",
+    fill_color="#4A90E2"
+)
+
+card = add_rectangle(
+    file_id=file_id,
+    page_id=page_id,
+    x=200, y=50,
+    width=300, height=200,
+    name="Card Component",
+    fill_color="#FFFFFF",
+    stroke_color="#E0E0E0",
+    stroke_width=1
+)
+
+# 3. Publish the file as a shared library
+publish_result = publish_as_library(file_id=file_id)
+print(f"Library published: {publish_result['file']['name']}")
+```
+
+#### Linking a Library and Using Components
+
+```python
+# 1. Link the library to your design file
+link_result = link_library(
+    file_id="design-file-123",
+    library_id="library-file-456"
+)
+print("Library linked successfully")
+
+# 2. List available components from the library
+components_result = list_library_components(library_id="library-file-456")
+print(f"Found {components_result['count']} components:")
+for component in components_result['components']:
+    print(f"  - {component['name']} (ID: {component['id']})")
+
+# 3. Import components into your design
+button_instance = import_component(
+    file_id="design-file-123",
+    page_id="page-1",
+    library_id="library-file-456",
+    component_id="button-component-id",
+    x=100,
+    y=100
+)
+
+card_instance = import_component(
+    file_id="design-file-123",
+    page_id="page-1",
+    library_id="library-file-456",
+    component_id="card-component-id",
+    x=300,
+    y=100
+)
+
+print("Components imported successfully")
+```
+
+#### Synchronizing Component Instances
+
+```python
+# When the library is updated, sync all instances in the design
+sync_result = sync_library(
+    file_id="design-file-123",
+    library_id="library-file-456"
+)
+
+print(f"Updated {sync_result['result']['updated-count']} component instances")
+```
+
+#### Complete Design System Workflow (API Level)
+
+```python
+from penpot_mcp.api.penpot_api import PenpotAPI
+
+api = PenpotAPI()
+
+# 1. Create and publish a design system library
+library_file = api.create_file(
+    name="Design System v2",
+    project_id="project-123",
+    is_shared=True  # Mark as library immediately
+)
+library_id = library_file['id']
+page_id = library_file['data']['pages'][0]['id']
+
+# 2. Add components to the library
+with api.editing_session(library_id) as (session_id, revn):
+    # Create a button component
+    button = api.create_rectangle(
+        x=50, y=50, width=120, height=40,
+        fill_color='#4A90E2',
+        name='Button Primary'
+    )
+    button_id = api.generate_session_id()
+    
+    changes = [
+        api.create_add_obj_change(button_id, page_id, button)
+    ]
+    api.update_file(library_id, session_id, revn, changes)
+
+# 3. Link library to a design file
+design_file_id = "existing-design-file"
+api.link_file_to_library(design_file_id, library_id)
+
+# 4. Get available components
+components = api.get_library_components(library_id)
+for comp in components:
+    print(f"Component: {comp['name']}")
+
+# 5. Instantiate a component from the library
+component_to_use = components[0]
+result = api.instantiate_component(
+    file_id=design_file_id,
+    page_id="page-1",
+    library_id=library_id,
+    component_id=component_to_use['id'],
+    x=200,
+    y=200
+)
+
+# 6. Later, sync all instances when library is updated
+sync_result = api.sync_file_library(design_file_id, library_id)
+print(f"Synced {sync_result.get('updated-count', 0)} instances")
+```
+
+#### Design System Best Practices
+
+1. **Library Organization**: Create separate library files for different component categories (UI controls, icons, layouts)
+2. **Naming Convention**: Use clear, descriptive names for components (e.g., "Button Primary", "Card Default")
+3. **Regular Syncing**: After updating a library, sync all dependent files to propagate changes
+4. **Version Control**: Consider using file naming or descriptions to track library versions
+5. **Component Variants**: Create multiple versions of components for different states (hover, active, disabled)
+6. **Documentation**: Add comments to complex components to help users understand usage
+
+#### AI-Assisted Library Management Example
+
+```python
+# AI analyzes a design and recommends using library components
+design_file = get_file(file_id="new-design")
+
+# Get linked libraries
+libraries = api.get_file_libraries(design_file_id)
+
+# For each library, check for relevant components
+for library in libraries:
+    components = api.get_library_components(library['id'])
+    
+    # AI suggests: "I found a 'Primary Button' component in your design system"
+    # "Would you like to replace this custom button with the library component?"
+    
+    # Import the standardized component
+    import_component(
+        file_id=design_file_id,
+        page_id="page-1",
+        library_id=library['id'],
+        component_id="button-primary-id",
+        x=100, y=200
+    )
 ```
 
 ### Testing Patterns
