@@ -582,11 +582,25 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
 
                 obj_type = obj.get('type')
 
+                # Validate object type - only visual objects can have colors changed
+                valid_types = ['rect', 'circle', 'path', 'text', 'frame', 'image', 'bool', 'group']
+                if obj_type not in valid_types:
+                    return {
+                        "success": False,
+                        "error": f"Cannot change color of object type '{obj_type}'. Valid types: {', '.join(valid_types)}"
+                    }
+
                 with self.api.editing_session(file_id) as (session_id, revn):
-                    # Use kebab-case as required by Penpot API
-                    fills = [{
+                    # Object-level fills use kebab-case (for Transit format)
+                    fills_kebab = [{
                         'fill-color': fill_color,
                         'fill-opacity': fill_opacity
+                    }]
+
+                    # Content structure fills use camelCase (Penpot's internal format)
+                    fills_camel = [{
+                        'fillColor': fill_color,
+                        'fillOpacity': fill_opacity
                     }]
 
                     ops = []
@@ -597,26 +611,31 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                         content = obj.get('content', {})
 
                         # Update fills in content structure at all levels
+                        # IMPORTANT: Use camelCase fills within content structure
                         if 'children' in content:
                             for paragraph_set in content['children']:
                                 if 'children' in paragraph_set:
                                     for paragraph in paragraph_set['children']:
-                                        # Set fills at paragraph level
-                                        paragraph['fills'] = fills
+                                        # Set fills at paragraph level (camelCase)
+                                        paragraph['fills'] = fills_camel
                                         if 'children' in paragraph:
                                             for text_node in paragraph['children']:
-                                                # Set fills at text node level
-                                                text_node['fills'] = fills
+                                                # Set fills at text node level (camelCase)
+                                                text_node['fills'] = fills_camel
 
                         # Update both content and fills
                         ops.append(self.api.create_set_operation('content', content))
-                        ops.append(self.api.create_set_operation('fills', fills))
+                        ops.append(self.api.create_set_operation('fills', fills_kebab))
                     else:
                         # For non-text objects, just update fills
-                        ops.append(self.api.create_set_operation('fills', fills))
+                        ops.append(self.api.create_set_operation('fills', fills_kebab))
 
                     change = self.api.create_mod_obj_change(object_id, ops)
                     result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    # Clear cache so next get_file() returns fresh data
+                    if file_id in self.file_cache._cache:
+                        del self.file_cache._cache[file_id]
 
                     return {
                         "success": True,
