@@ -2,6 +2,10 @@
 
 This guide explains how to run integration tests against a real Penpot instance (local or cloud).
 
+## Overview
+
+The integration tests create a **persistent test project** with separate files for each test class, allowing you to visually verify the results in Penpot after tests run. This approach helps validate that all shapes, text, frames, and other design elements are created correctly.
+
 ## Prerequisites
 
 1. **Running Penpot instance** (local at http://localhost:9001 or cloud)
@@ -73,15 +77,42 @@ uv run pytest tests/test_integration_local.py::TestMCPTools::test_add_rectangle_
 ### Version Compatibility
 - ✅ vern parameter handling for self-hosted instances
 
-## Test Cleanup
+## Test Organization
 
-The tests automatically clean up:
-- Test projects created during tests
-- Test files created during tests
+### Persistent Test Project
 
-If cleanup fails, you may need to manually delete test projects/files with names like:
-- "MCP Integration Test {timestamp}"
-- "Test File {timestamp}"
+The tests create a project called **"MCP Integration Tests - {timestamp}"** that persists after the tests complete. This allows you to:
+
+1. **Visually verify** all test results in Penpot
+2. **Debug failures** by inspecting the actual design elements
+3. **Track progress** across multiple test runs
+
+Each test class creates its own file in the project:
+
+| File Name | Test Class | Contents |
+|-----------|-----------|----------|
+| `01 - Project & File Management` | TestProjectFileManagement | Tests for CRUD operations |
+| `02 - Shape Creation` | TestShapeCreation | Rectangle, circle, text, frame tests |
+| `03 - MCP Tools` | TestMCPTools | End-to-end MCP tool validation |
+| `04 - Version Compatibility` | TestVersionCompatibility | vern parameter handling |
+
+### Test Cleanup
+
+By default, **test projects are preserved** for visual inspection. To enable automatic cleanup:
+
+```bash
+export CLEANUP_TEST_FILES=true
+```
+
+When enabled, the test project and all its files will be deleted after tests complete.
+
+### Manual Cleanup
+
+If you want to manually delete old test projects:
+
+1. Open Penpot in your browser
+2. Look for projects named "MCP Integration Tests - {timestamp}"
+3. Delete the ones you no longer need
 
 ## Debugging
 
@@ -154,3 +185,43 @@ export PENPOT_USERNAME=admin@penpot.local
 export PENPOT_PASSWORD=admin
 uv run pytest tests/test_integration_local.py -v -s
 ```
+
+## Example Test Output
+
+When tests run successfully, you'll see output like:
+
+```
+============================================================
+Created test project: MCP Integration Tests - 2025-10-09 12:20
+Project ID: 689fbaf0-efce-81fe-8006-edb587995b16
+============================================================
+
+────────────────────────────────────────────────────────────
+Created test file: 01 - Project & File Management - 2025-10-09 12:20
+File ID: 689fbaf0-efce-81fe-8006-edb587c3b96a
+────────────────────────────────────────────────────────────
+
+tests/test_integration_local.py::TestProjectFileManagement::test_get_teams PASSED
+
+────────────────────────────────────────────────────────────
+Created test file: 02 - Shape Creation - 2025-10-09 12:20
+File ID: 689fbaf0-efce-81fe-8006-edb587e27d06
+────────────────────────────────────────────────────────────
+
+Test: Add Rectangle
+Page ID: 689fbaf0-efce-81fe-8006-edb587e27d07
+Added rectangle, new revision: 2
+
+tests/test_integration_local.py::TestShapeCreation::test_add_rectangle PASSED
+
+============================================================
+Test project preserved for visual inspection:
+  Project: MCP Integration Tests - 2025-10-09 12:20
+  ID: 689fbaf0-efce-81fe-8006-edb587995b16
+  Set CLEANUP_TEST_FILES=true to auto-delete
+============================================================
+
+======================== 13 passed in 2.79s =========================
+```
+
+After tests complete, open Penpot and navigate to the test project to see all the created shapes, text, and frames!

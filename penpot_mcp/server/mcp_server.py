@@ -562,19 +562,107 @@ Let me know which Penpot design you'd like to convert to code, and I'll guide yo
                 change_object_color(file_id="file-123", object_id="obj-456", fill_color="#FF0000")
             """
             try:
+                # First, get the file to check object type
+                file_data = self.api.get_file(file_id)
+                pages_index = file_data.get('data', {}).get('pagesIndex', {})
+
+                # Find the object in the pages
+                obj = None
+                for page_id, page_data in pages_index.items():
+                    objects = page_data.get('objects', {})
+                    if object_id in objects:
+                        obj = objects[object_id]
+                        break
+
+                if not obj:
+                    return {
+                        "success": False,
+                        "error": f"Object {object_id} not found in file"
+                    }
+
+                obj_type = obj.get('type')
+
+                # Validate object type - only visual objects can have colors changed
+                valid_types = ['rect', 'circle', 'path', 'text', 'frame', 'image', 'bool', 'group']
+                if obj_type not in valid_types:
+                    return {
+                        "success": False,
+                        "error": f"Cannot change color of object type '{obj_type}'. Valid types: {', '.join(valid_types)}"
+                    }
+
                 with self.api.editing_session(file_id) as (session_id, revn):
-                    # Set new fill
-                    fills = [{
-                        'fillColor': fill_color,
-                        'fillOpacity': fill_opacity
+                    # Penpot stores fillOpacity as int when it's a whole number
+                    # We need to match this type exactly or the change is silently rejected
+                    opacity_value = int(fill_opacity) if fill_opacity == int(fill_opacity) else fill_opacity
+
+                    # Content structure fills: use kebab-case when SENDING to API
+                    # (Penpot returns camelCase when READING, but expects kebab-case when WRITING)
+                    fills_content = [{
+                        'fill-color': fill_color,
+                        'fill-opacity': opacity_value
                     }]
 
-                    ops = [
-                        self.api.create_set_operation('fills', fills)
-                    ]
+                    # Object-level fills: use camelCase (Transit will add ~: prefix)
+                    fills_object = [{
+                        'fillColor': fill_color,
+                        'fillOpacity': opacity_value
+                    }]
+
+                    ops = []
+
+                    # For text objects, update the content structure ONLY
+                    # Text objects do not support object-level fills
+                    if obj_type == 'text':
+                        # Get existing content structure and create a deep copy
+                        # to avoid modifying cached references
+                        import copy
+
+                        def camel_to_kebab(name):
+                            """Convert camelCase to kebab-case."""
+                            import re
+                            # Insert hyphen before uppercase letters and convert to lowercase
+                            return re.sub(r'([a-z0-9])([A-Z])', r'\1-\2', name).lower()
+
+                        def convert_content_to_kebab(obj):
+                            """Recursively convert content structure keys from camelCase to kebab-case."""
+                            if isinstance(obj, dict):
+                                return {camel_to_kebab(k): convert_content_to_kebab(v) for k, v in obj.items()}
+                            elif isinstance(obj, list):
+                                return [convert_content_to_kebab(item) for item in obj]
+                            else:
+                                return obj
+
+                        content = copy.deepcopy(obj.get('content', {}))
+
+                        # Update fills in content structure at all levels
+                        # Use kebab-case for fills (Penpot requirement)
+                        if 'children' in content:
+                            for paragraph_set in content['children']:
+                                if 'children' in paragraph_set:
+                                    for paragraph in paragraph_set['children']:
+                                        # Set fills at paragraph level
+                                        paragraph['fills'] = fills_content
+                                        if 'children' in paragraph:
+                                            for text_node in paragraph['children']:
+                                                # Set fills at text node level
+                                                text_node['fills'] = fills_content
+
+                        # Convert entire content structure to kebab-case
+                        # (Penpot returns camelCase when reading, but requires kebab-case when writing)
+                        content = convert_content_to_kebab(content)
+
+                        # Update content only (do NOT set object-level fills for text)
+                        ops.append(self.api.create_set_operation('content', content))
+                    else:
+                        # For non-text objects, update object-level fills
+                        ops.append(self.api.create_set_operation('fills', fills_object))
 
                     change = self.api.create_mod_obj_change(object_id, ops)
                     result = self.api.update_file(file_id, session_id, revn, [change])
+
+                    # Clear cache so next get_file() returns fresh data
+                    if file_id in self.file_cache._cache:
+                        del self.file_cache._cache[file_id]
 
                     return {
                         "success": True,
