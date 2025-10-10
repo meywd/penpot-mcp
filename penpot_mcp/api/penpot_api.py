@@ -841,21 +841,24 @@ class PenpotAPI:
     def _convert_changes_to_transit(self, changes: List[dict]) -> List[dict]:
         """
         Convert a list of change operations to Transit+JSON format.
-        
+
         This method recursively processes change operations, adding:
         - ~u prefix to UUID fields (id, pageId, frameId, parentId)
-        - ~: prefix to keyword fields (type, attr names)
-        
+        - ~: prefix to keyword fields (all dict keys, type/attr values for operations)
+
+        IMPORTANT: Content structure uses kebab-case keys (fill-color, font-family)
+        which get converted to Transit keywords (~:fill-color, ~:font-family)
+
         Args:
             changes: List of change operations
-            
+
         Returns:
             List of changes in Transit+JSON format
         """
         def should_convert_to_keyword(key: str, value: str) -> bool:
             """Determine if a string value should be converted to a Transit keyword.
 
-            Text content structure types (root, paragraph-set, paragraph) must remain
+            Text content structure type values (root, paragraph-set, paragraph) must remain
             as strings, not keywords, for Penpot API compatibility.
             """
             keyword_fields = {'type', 'attr'}
@@ -863,15 +866,18 @@ class PenpotAPI:
             return key in keyword_fields and value not in text_content_types
 
         def convert_value(key: str, value: Any) -> Any:
-            """Convert a single value based on its key and type."""
+            """Convert a single value based on its key and type.
+
+            Args:
+                key: The dictionary key for this value
+                value: The value to convert
+            """
             # UUID fields that need ~u prefix
             uuid_fields = {'id', 'pageId', 'frameId', 'parentId', 'obj-id'}
 
             if isinstance(value, dict):
-                # Recursively convert nested dictionaries
                 return convert_dict(value)
             elif isinstance(value, list):
-                # Recursively convert list items
                 return [convert_value(key, item) for item in value]
             elif isinstance(value, str):
                 # Handle string values based on the key
@@ -887,18 +893,24 @@ class PenpotAPI:
             else:
                 # Return non-string types as-is (numbers, booleans, None)
                 return value
-        
+
         def convert_dict(obj: dict) -> dict:
-            """Convert a dictionary to Transit+JSON format."""
+            """Convert a dictionary to Transit+JSON format.
+
+            All dict keys are converted to Transit keywords by adding ~: prefix.
+
+            Args:
+                obj: Dictionary to convert
+            """
             transit_obj = {}
+
             for key, value in obj.items():
-                # Convert key to Transit keyword format
+                # Convert ALL keys to Transit keyword format
                 transit_key = f"~:{key}" if not key.startswith('~:') else key
-                # Convert value
                 transit_value = convert_value(key, value)
                 transit_obj[transit_key] = transit_value
             return transit_obj
-        
+
         # Convert each change operation
         return [convert_dict(change) for change in changes]
 
@@ -1334,9 +1346,12 @@ class PenpotAPI:
         # Create proper text content structure
         # IMPORTANT: Text color must be set in the content structure, not just at object level
         # Penpot UI reads text color from content.children[].children[].children[].fills
+        # NOTE: Content structure uses kebab-case when SENDING to API (fill-color, fill-opacity)
+        # but Penpot returns camelCase (fillColor, fillOpacity) when READING from API
+        # This is a quirk of Penpot's Transit+JSON handling
         fills_array = [{
             'fill-color': fill_color,
-            'fill-opacity': 1.0
+            'fill-opacity': 1
         }]
 
         text_content = {
@@ -1351,21 +1366,21 @@ class PenpotAPI:
                         'font-family': font_family,
                         'font-size': str(font_size),
                         'font-weight': font_weight,
+                        'font-id': kwargs.get('font-id', 'gfont-work-sans'),  # Add font-id for font support
                         'fills': fills_array  # Add fills at text level
                     }]
                 }]
             }]
         }
 
-        # NOTE: Property names use kebab-case (fill-color, font-size) as required by Penpot API
-        # This is intentional and differs from Python's snake_case or JavaScript's camelCase
+        # Text objects do NOT support object-level fills
+        # Only the content structure fills are used by Penpot
         text = {
             'type': 'text',
             'name': name,
             'x': x,
             'y': y,
-            'content': text_content,
-            'fills': fills_array  # Also set at object level for completeness
+            'content': text_content
         }
 
         text.update(kwargs)
